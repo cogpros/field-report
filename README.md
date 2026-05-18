@@ -4,7 +4,9 @@
 
 **There's a different way to do this.** Instead of answering an agent's questions in chat, you answer in a browser tab. Each question has its own textarea, in place, next to the question. When you're done you click one button and your structured answers paste right back into the agent's terminal — as markdown, as a downloaded `.md` file, or wrapped in a ready-to-paste `claude -p '...'` shell command.
 
-This skill teaches Claude Code that pattern. Once installed, any time the agent would otherwise dump a wall of questions into chat — decision docs, audits, brainstorms, multi-section reviews — it writes an HTML field report instead. You answer in the browser. You copy your answers back. The agent acts on a clean, structured response.
+This skill teaches Claude Code that pattern. **You invoke it explicitly** — `use field-report for this` — at the start of a decision doc, audit, brainstorm, or multi-section review. The agent reads the canonical template, writes the HTML report, drops it in your configured reports directory. You answer in the browser. You copy your answers back. The agent acts on a clean, structured response.
+
+(Manual invocation is the design, not a limitation. See [*Why manual invocation*](#why-manual-invocation-and-not-auto-trigger) below.)
 
 **[See it live →](https://raw.githack.com/cogpros/field-report/main/references/example.html)** — a worked demo: your agent asking you five questions before scaffolding a new project. Open it, type into the textareas, hit the copy button. Zero clone, zero install.
 
@@ -60,7 +62,21 @@ git clone https://github.com/cogpros/field-report ~/Work/skills/field-report
 ln -s ~/Work/skills/field-report ~/.claude/skills/field-report
 ```
 
-Restart Claude Code. The agent picks up the skill from its `SKILL.md` description and will invoke it automatically whenever you ask for a decision doc, audit, brainstorm, or anything else that would otherwise be a wall of questions in chat. You do not type a slash command. The skill triggers on the work shape.
+Restart Claude Code. The skill is now available.
+
+**Invoke it manually.** When you want a decision doc, audit, brainstorm, or any multi-question response, tell Claude `use field-report for this` (or `run the field-report skill`). The agent reads the SKILL.md and follows the canonical template. The skill does not auto-fire on the work shape — see *Why manual invocation* below.
+
+## Why manual invocation (and not auto-trigger)
+
+Claude Code skills have a `description` field that, in theory, lets the agent auto-pick the right skill for your request. In practice that mechanism breaks in three directions at once:
+
+1. **The agent skips the skill when skipping is faster.** Skills add steps; the agent's drive to answer you fast will override a description hint every time it thinks it can wing the answer in chat. You ask for a decision doc, the agent writes you a chat-wall instead, and the skill never fires.
+2. **The agent fires the skill when it shouldn't.** Broad descriptions over-trigger. A quick status note becomes a 200-line canonical template because "generates HTML" matched. Same lever, opposite failure.
+3. **Non-determinism kills the trust contract.** Whether the skill fires depends on context window state, how recently a similar task ran, the exact phrasing, the model's mood that turn. Two identical requests give two different behaviors. You can never tell whether the skill ran because it should have or because the dice rolled right.
+
+Manual invocation flips that. You type `use field-report for this` → it runs. You don't → it doesn't run on unrelated work. The cost is one phrase at the start of a decision turn. The win is determinism: skills become reliable tools instead of probabilistic helpers. The trap is trusting the agent to know when to use this for you. It won't, reliably, no matter what the description says.
+
+When in doubt: invoke explicitly. That's the contract.
 
 ## First-time setup
 

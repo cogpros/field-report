@@ -1,10 +1,12 @@
 ---
 name: field-report
 description: >
-  Use whenever you generate an HTML report that asks the user for decisions,
-  surfaces choices, or requests responses. Copies a canonical template so every
-  report has the same shape (17 baseline features). NOT for: read-only audit
-  logs with no user input, non-HTML outputs.
+  Manually invoked when the user asks for a "field report" or says "use
+  field-report for this". Generates an interactive HTML report (textareas after
+  every question, three export buttons, light/dark, localStorage) from a
+  canonical template — 15 baseline features + 2 optional patterns. Do NOT
+  auto-fire on description match; manual invocation only. NOT for: read-only
+  audit logs with no user input, non-HTML outputs.
 version: 2.1.1
 license: MIT
 public_repo: https://github.com/cogpros/field-report
@@ -21,15 +23,17 @@ metadata:
 
 Every field report comes out the same shape. The user opens a report and the surface is identical to the last one — checkboxes top-right, progress bar at top, Tab-to-fill on textareas, copy buttons bottom-right, light/dark toggle. Uniformity is the entire value. Hand-building from scratch is the failure mode this skill exists to prevent.
 
-## Trigger conditions (when to invoke)
+## Trigger conditions (manual invocation)
 
-Invoke this skill whenever ALL of these are true:
+**This skill is invoked manually, not by description-matching.** Auto-invocation of skills is unreliable in both directions (skipped when the agent thinks it can wing the answer; over-fired on tangential work). The user invokes this skill explicitly — typically by saying `use field-report for this` or `run the field-report skill`. Do not auto-fire on description match. See the public README's *Why manual invocation* section for the full reasoning.
+
+When the user has explicitly invoked the skill, all of these should be true before you generate the report:
 
 1. You are generating an HTML file
 2. The file goes to the user's reports directory (see *Reports directory* below)
 3. The report contains at least one decision, question, callout, or open-ended section that asks the user for input
 
-If any of those is false, you may be writing a different artifact (raw audit log, read-only summary, non-HTML output). Field-report skill does not apply.
+If the user invoked the skill but any of those is false (e.g. they want a read-only summary), surface the mismatch and ship the simpler artifact instead of forcing the canonical template.
 
 ## Reports directory
 
