@@ -218,7 +218,9 @@ Empty result = healthy. Listed files lack one of the newest baseline features.
 
 ## Autoresearch notes
 
-**Q13 (empirical):** NO — internal dogfooding only (~13 reports over 48 hours during v2.1.x development). External adoption runs needed before scoring this as PARTIAL or YES. Target: three scored runs against the Pre-save checklist + 15-feature presence grep.
+**Q13 (empirical):** PARTIAL — ~13+ real reports generated over 48 hours of operator use during v2.1.x development, with iterative reshaping in response (light/dark toggle added back, 17→15+2 feature renumber, per-block code copy, manual-invocation reframe). Behavioral outcome signal: operator reports morning re-orientation working — closing a session with reports in the directory and opening the next day with state preserved and next-steps legible without re-loading context. That is the value the skill claims to enable, observed in practice.
+
+To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-feature presence grep, ideally one of them by an adopter outside the author's own stack.
 
 **Q14 (observability):** PARTIAL — bus event emission specified above. Drift detection grep specified. Not yet wired into automation by default; adopters do their own.
 
