@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Database choice for Atlas — decision doc</title>
+<style>
+/* ── palette: red / black / white, light + dark ── */
+:root{
+  --bg:#ffffff;
+  --ink:#1a1a1a;
+  --accent:#c41e3a;
+  --toast:#c41e3a;
+  --rule:#e4e4e4;
+  --card:#fafafa;
+  --muted:#666;
+  --shadow:0 4px 14px #0001;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a0a0a;
+    --ink:#f2f2f2;
+    --accent:#ff4d5e;
+    --toast:#ff4d5e;
+    --rule:#262626;
+    --card:#141414;
+    --muted:#999;
+    --shadow:0 4px 14px #0007;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a0a0a;
+  --ink:#f2f2f2;
+  --accent:#ff4d5e;
+  --toast:#ff4d5e;
+  --rule:#262626;
+  --card:#141414;
+  --muted:#999;
+  --shadow:0 4px 14px #0007;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 ui-serif,Georgia,serif;transition:background .2s,color .2s}
+.wrap{max-width:780px;margin:0 auto;padding:48px 28px 160px}
+h1{font:700 28px/1.2 ui-serif,Georgia,serif;margin:0 0 6px}
+h2{font:700 17px/1.3 ui-serif,Georgia,serif;margin:36px 0 8px;padding-top:18px;border-top:1px solid var(--rule);text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+h3{font:600 15px/1.3 ui-serif,Georgia,serif;margin:14px 0 6px}
+p{margin:8px 0}
+.meta{color:var(--muted);font-size:13px;margin-bottom:24px}
+code{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+.option{background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:14px 16px;margin:10px 0}
+.option strong{color:var(--accent)}
+.tag{display:inline-block;background:var(--accent);color:#fff;font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:4px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;margin-right:6px;vertical-align:middle}
+.rec{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--accent);padding:12px 14px;border-radius:6px;margin:14px 0}
+
+/* theme toggle — top right */
+.theme-toggle{
+  position:fixed;top:18px;right:18px;z-index:60;
+  background:var(--card);color:var(--ink);border:1px solid var(--rule);
+  width:38px;height:38px;border-radius:50%;cursor:pointer;
+  font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);transition:transform .15s;
+}
+.theme-toggle:hover{transform:scale(1.08)}
+
+/* ── field-report pattern ── */
+textarea.note{
+  display:block;width:100%;min-height:64px;margin-top:10px;
+  padding:10px 12px;border:1.5px dashed var(--accent);border-radius:6px;
+  font:14px/1.5 system-ui,sans-serif;background:var(--card);color:var(--ink);
+  resize:vertical;
+}
+textarea.note:focus{outline:none;border-style:solid;background:var(--bg)}
+textarea.note::placeholder{color:var(--accent);opacity:.5;font-style:italic}
+.bar{position:fixed;right:18px;bottom:18px;display:flex;gap:8px;z-index:50;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 36px)}
+.bar button{background:var(--ink);color:var(--bg);border:none;padding:11px 14px;border-radius:8px;font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;box-shadow:var(--shadow)}
+.bar button.accent{background:var(--accent);color:#fff}
+.bar button:hover{transform:translateY(-1px)}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--toast);color:#fff;padding:10px 18px;border-radius:8px;font:700 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60}
+.toast.show{opacity:1}
+
+/* ── POSTED stamp (fires after any export, animates on first stamp) ── */
+.posted-stamp{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) rotate(-14deg);
+  font:900 18vw/1 ui-serif,Georgia,serif;
+  color:#c41e3a;opacity:.18;
+  pointer-events:none;z-index:100;
+  letter-spacing:.06em;text-transform:uppercase;
+  text-shadow:0 0 40px #c41e3a55;
+  user-select:none;white-space:nowrap;
+  transform-origin:center;
+}
+.posted-stamp .when{
+  display:block;font:700 1.4vw/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  text-align:center;margin-top:1.2vw;opacity:.7;letter-spacing:.04em;
+}
+:root[data-theme="dark"] .posted-stamp{opacity:.24;color:#ff4d5e}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .posted-stamp{opacity:.24;color:#ff4d5e}
+}
+@keyframes stamp-slam{
+  0%   { transform:translate(-50%,-50%) rotate(-14deg) scale(4.5); opacity:0; }
+  55%  { transform:translate(-50%,-50%) rotate(-14deg) scale(.88); opacity:.32; }
+  72%  { transform:translate(-50%,-50%) rotate(-14deg) scale(1.08); opacity:.22; }
+  100% { transform:translate(-50%,-50%) rotate(-14deg) scale(1);    opacity:.18; }
+}
+@keyframes stamp-slam-dark{
+  0%   { transform:translate(-50%,-50%) rotate(-14deg) scale(4.5); opacity:0; }
+  55%  { transform:translate(-50%,-50%) rotate(-14deg) scale(.88); opacity:.4; }
+  72%  { transform:translate(-50%,-50%) rotate(-14deg) scale(1.08); opacity:.28; }
+  100% { transform:translate(-50%,-50%) rotate(-14deg) scale(1);    opacity:.24; }
+}
+.posted-stamp.stamp-animate{ animation:stamp-slam .42s cubic-bezier(.22,1.2,.36,1) both; }
+:root[data-theme="dark"] .posted-stamp.stamp-animate{ animation-name:stamp-slam-dark; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .posted-stamp.stamp-animate{ animation-name:stamp-slam-dark; }
+}
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light / dark">◐</button>
+
+<div class="wrap">
+
+<h1>Database choice for Atlas</h1>
+<div class="meta">Decision doc — pick the primary datastore before sprint 0 starts. Six questions, then a final call. Answer in the textareas; export at the bottom.</div>
+
+<p>Atlas is a multi-tenant analytics app. ~500 customers expected in year 1, ~10M events/day at steady state. We're choosing the primary datastore now and don't want to revisit for 18 months. Three candidates were shortlisted: Postgres, ClickHouse, and a Postgres + ClickHouse hybrid.</p>
+
+<h2><span class="tag">1</span>Workload shape</h2>
+<p>Atlas is ~80% analytical reads (dashboards, cohort queries) and ~20% transactional writes (user config, account state). Reads are heavy aggregations across millions of rows. Writes are small and frequent.</p>
+<h3>Does this match your expectation?</h3>
+<p>If the read/write ratio is wrong, every downstream choice shifts.</p>
+<textarea class="note" data-q="01-workload-shape" placeholder="Confirm, correct, or add nuance..."></textarea>
+
+<h2><span class="tag">2</span>Option A — Postgres only</h2>
+<div class="option">
+  <strong>Pros.</strong> One database to operate. Mature tooling. Team knows it. Analytical queries possible via materialized views + partitioning.<br>
+  <strong>Cons.</strong> At 10M events/day, aggregation queries will need careful indexing. Some dashboards will get slow. Vertical scaling has a ceiling.
+</div>
+<h3>Is one-database simplicity worth the query-tuning cost?</h3>
+<textarea class="note" data-q="02-postgres" placeholder="Your read on Postgres-only..."></textarea>
+
+<h2><span class="tag">3</span>Option B — ClickHouse only</h2>
+<div class="option">
+  <strong>Pros.</strong> Built for analytical reads at this scale. Aggregations are milliseconds. Compression is excellent.<br>
+  <strong>Cons.</strong> Transactional writes are awkward. No real foreign keys. Team has zero operational experience with it. Migrations are nontrivial.
+</div>
+<h3>Is the analytical performance worth the operational unknowns?</h3>
+<textarea class="note" data-q="03-clickhouse" placeholder="Your read on ClickHouse-only..."></textarea>
+
+<h2><span class="tag">4</span>Option C — Postgres + ClickHouse hybrid</h2>
+<div class="option">
+  <strong>Pros.</strong> Postgres for config + state. ClickHouse for event analytics. Each tool used for what it's good at.<br>
+  <strong>Cons.</strong> Two databases to operate. A replication pipeline to maintain. Consistency window between the two. Doubled monitoring surface.
+</div>
+<h3>Does the team have the operational headcount for two systems?</h3>
+<textarea class="note" data-q="04-hybrid" placeholder="Headcount, operational appetite..."></textarea>
+
+<h2><span class="tag">5</span>The 18-month horizon</h2>
+<p>The promise: don't revisit this choice for 18 months. At ~10M events/day growing 15%/quarter, the dataset hits ~7B rows by month 18.</p>
+<h3>Which option survives that growth without intervention?</h3>
+<textarea class="note" data-q="05-horizon" placeholder="Which one scales without re-platforming..."></textarea>
+
+<h2><span class="tag">6</span>Hiring signal</h2>
+<p>The Postgres ecosystem has 10x more candidates than ClickHouse. If we ship with ClickHouse, our next two infra hires are constrained.</p>
+<h3>Does the hiring constraint change your read?</h3>
+<textarea class="note" data-q="06-hiring" placeholder="Talent pool — does it matter here..."></textarea>
+
+<div class="rec">
+  <strong>My recommendation: Option C (hybrid), with a caveat.</strong>
+  Postgres handles config and state where consistency matters. ClickHouse handles event analytics where speed matters. The replication pipeline is a real cost — but cheaper than re-platforming at month 14 when Postgres aggregations start failing SLOs. Caveat: only if we hire one infra engineer with ClickHouse experience in the next 60 days. Otherwise default to Option A and accept the eventual migration.
+</div>
+
+<h2><span class="tag">+</span>Your call</h2>
+<p>Which option, and what's the reasoning? If you're picking C, state the hiring commitment explicitly.</p>
+<textarea class="note" data-q="final-decision" placeholder="A / B / C — and why..."></textarea>
+
+<h2><span class="tag">+</span>Open notes</h2>
+<p>Anything I missed. Options I didn't consider. Constraints I should know.</p>
+<textarea class="note" data-q="freeform" style="min-height:140px" placeholder="Free-form notes..."></textarea>
+
+</div><!-- /.wrap -->
+
+<div class="bar">
+  <button id="copyMdBtn">Copy markdown</button>
+  <button id="dlBtn" class="accent">Download .md</button>
+  <button id="claudeBtn" class="accent">Copy as Claude prompt</button>
+</div>
+<div id="toast" class="toast">Copied to clipboard</div>
+
+<script>
+/* ── theme toggle ── */
+(function(){
+  const root = document.documentElement;
+  const btn = document.getElementById("themeToggle");
+  const stored = localStorage.getItem("ihr-theme");
+  if(stored === "light" || stored === "dark") root.setAttribute("data-theme", stored);
+
+  function current(){
+    const attr = root.getAttribute("data-theme");
+    if(attr) return attr;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function paint(){ btn.textContent = current() === "dark" ? "☀" : "☾"; }
+  paint();
+
+  btn.addEventListener("click", () => {
+    const next = current() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("ihr-theme", next);
+    paint();
+  });
+})();
+
+/* ── field-report export pattern ── */
+(function(){
+  const docTitle = "Database choice for Atlas — decision doc";
+  const fileSlug = "atlas-db-decision";
+  const stampKey = "ihr-posted-" + location.pathname;
+
+  function nowStamp(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function applyStamp(when, animate){
+    if(document.querySelector(".posted-stamp")) return;
+    const el = document.createElement("div");
+    el.className = "posted-stamp" + (animate ? " stamp-animate" : "");
+    el.innerHTML = "POSTED<span class=\"when\">" + when + "</span>";
+    document.body.appendChild(el);
+  }
+  function stamp(){
+    const existing = localStorage.getItem(stampKey);
+    if(existing){ applyStamp(existing, false); return; }
+    const when = nowStamp();
+    localStorage.setItem(stampKey, when);
+    applyStamp(when, true);
+  }
+  const prior = localStorage.getItem(stampKey);
+  if(prior) applyStamp(prior, false);
+
+  function collect(){
+    const sections = [];
+    document.querySelectorAll("textarea.note").forEach(t => {
+      const v = (t.value||"").trim();
+      if(!v) return;
+      sections.push({ label: t.dataset.q || "note", answer: v });
+    });
+    return sections;
+  }
+  function asMarkdown(sections){
+    const out = [`# ${docTitle}`, `_Exported ${new Date().toISOString()}_`, ""];
+    if(!sections.length){ out.push("_(no notes captured)_"); return out.join("\n"); }
+    sections.forEach(s => out.push(`## ${s.label}`, "", s.answer, ""));
+    return out.join("\n");
+  }
+  function asClaudePrompt(sections){
+    const md = asMarkdown(sections);
+    const escaped = md.replace(/'/g, "'\\''");
+    return `claude -p 'Here are my answers to "${docTitle}":\n\n${escaped}'`;
+  }
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1400);
+  }
+  async function copy(text, label){
+    try { await navigator.clipboard.writeText(text); toast(label); }
+    catch(e){ toast("Copy failed — use download"); }
+  }
+  document.getElementById("copyMdBtn").addEventListener("click", async () => {
+    await copy(asMarkdown(collect()), "Copied markdown"); stamp();
+  });
+  document.getElementById("dlBtn").addEventListener("click", () => {
+    const blob = new Blob([asMarkdown(collect())], {type:"text/markdown"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${fileSlug}-answers.md`; a.click();
+    URL.revokeObjectURL(url);
+    toast("Downloaded"); stamp();
+  });
+  document.getElementById("claudeBtn").addEventListener("click", async () => {
+    await copy(asClaudePrompt(collect()), "Copied Claude prompt"); stamp();
+  });
+})();
+</script>
+</body>
+</html>

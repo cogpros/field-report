@@ -1,0 +1,222 @@
+<!--
+  field-report — paste-ready snippet
+  ---------------------------------------------
+  Drop these three blocks into any HTML report. Palette-agnostic: define
+  --bg, --ink, --accent, --toast in your report's CSS. The snippet picks them up.
+
+  1. CSS — inside <style>
+  2. HTML — at end of <body>, before </body>
+  3. Script — just before </body>, after the action bar
+
+  Per-section textareas: <textarea class="note" data-q="LABEL"></textarea>
+  after each question / decision / callout.
+-->
+
+
+<!-- ─────────────────────────  1.  CSS  ───────────────────────── -->
+<style>
+/*
+  These four variables MUST be defined in your report.
+  Canonical default palette: red / black / white, light + dark.
+  Drop these :root blocks at the top of your <style> to get it.
+
+  :root{
+    --bg:#ffffff; --ink:#1a1a1a; --accent:#c41e3a; --toast:#c41e3a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a0a0a; --ink:#f2f2f2; --accent:#ff4d5e; --toast:#ff4d5e;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0a0a; --ink:#f2f2f2; --accent:#ff4d5e; --toast:#ff4d5e;
+  }
+
+  Optional theme toggle (top-right corner) — see references/example.html
+  for the button + localStorage wiring.
+
+  Pattern is palette-agnostic; swap in any colors you want.
+*/
+textarea.note{
+  display:block;width:100%;min-height:64px;margin-top:10px;
+  padding:10px 12px;border:1.5px dashed var(--accent);border-radius:6px;
+  font:14px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  resize:vertical;
+}
+textarea.note:focus{outline:none;border-style:solid;background:#fff}
+textarea.note::placeholder{color:var(--accent);opacity:.5;font-style:italic}
+
+.bar{
+  position:fixed;right:18px;bottom:18px;display:flex;gap:8px;z-index:50;
+  flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 36px);
+}
+.bar button{
+  background:var(--ink);color:var(--bg);border:none;
+  padding:11px 14px;border-radius:8px;
+  font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  text-transform:uppercase;letter-spacing:.06em;cursor:pointer;
+  box-shadow:0 4px 14px #0003;
+}
+.bar button.accent{background:var(--accent)}
+.bar button:hover{transform:translateY(-1px)}
+
+.toast{
+  position:fixed;left:50%;bottom:80px;transform:translateX(-50%);
+  background:var(--toast);color:#fff;padding:10px 18px;border-radius:8px;
+  font:700 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  opacity:0;transition:opacity .2s;pointer-events:none;z-index:60;
+}
+.toast.show{opacity:1}
+
+/* ── POSTED stamp — fires after any export, persists via localStorage ── */
+.posted-stamp{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) rotate(-14deg);
+  font:900 18vw/1 ui-serif,Georgia,serif;
+  color:#c41e3a;opacity:.18;
+  pointer-events:none;z-index:100;
+  letter-spacing:.06em;text-transform:uppercase;
+  text-shadow:0 0 40px #c41e3a55;
+  user-select:none;white-space:nowrap;
+  transform-origin:center;
+}
+.posted-stamp .when{
+  display:block;font:700 1.4vw/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  text-align:center;margin-top:1.2vw;opacity:.7;letter-spacing:.04em;
+}
+:root[data-theme="dark"] .posted-stamp{opacity:.24;color:#ff4d5e}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .posted-stamp{opacity:.24;color:#ff4d5e}
+}
+/* Slam-in animation: stamp drops from huge to settled, with a tiny overshoot.
+   Only applied on first-export; restored stamps on reload appear in final state. */
+@keyframes stamp-slam{
+  0%   { transform:translate(-50%,-50%) rotate(-14deg) scale(4.5); opacity:0; }
+  55%  { transform:translate(-50%,-50%) rotate(-14deg) scale(.88); opacity:.32; }
+  72%  { transform:translate(-50%,-50%) rotate(-14deg) scale(1.08); opacity:.22; }
+  100% { transform:translate(-50%,-50%) rotate(-14deg) scale(1);    opacity:.18; }
+}
+@keyframes stamp-slam-dark{
+  0%   { transform:translate(-50%,-50%) rotate(-14deg) scale(4.5); opacity:0; }
+  55%  { transform:translate(-50%,-50%) rotate(-14deg) scale(.88); opacity:.4; }
+  72%  { transform:translate(-50%,-50%) rotate(-14deg) scale(1.08); opacity:.28; }
+  100% { transform:translate(-50%,-50%) rotate(-14deg) scale(1);    opacity:.24; }
+}
+.posted-stamp.stamp-animate{ animation:stamp-slam .42s cubic-bezier(.22,1.2,.36,1) both; }
+:root[data-theme="dark"] .posted-stamp.stamp-animate{ animation-name:stamp-slam-dark; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .posted-stamp.stamp-animate{ animation-name:stamp-slam-dark; }
+}
+</style>
+
+
+<!-- ─────────────────────────  2.  HTML  ───────────────────────── -->
+
+<!-- Per-section textarea (add after each question / decision / callout) -->
+<textarea class="note" data-q="Q1" placeholder="Your answer..."></textarea>
+
+<!-- Open-mic textarea (add once, near the bottom of your content) -->
+<h2>Open notes</h2>
+<p>Anything not covered above.</p>
+<textarea class="note" data-q="freeform" style="min-height:140px" placeholder="Free-form notes..."></textarea>
+
+<!-- Action bar + toast (add once, just before </body>) -->
+<div class="bar">
+  <button id="copyMdBtn">Copy markdown</button>
+  <button id="dlBtn" class="accent">Download .md</button>
+  <button id="claudeBtn" class="accent">Copy as Claude prompt</button>
+</div>
+<div id="toast" class="toast">Copied to clipboard</div>
+
+
+<!-- ─────────────────────────  3.  SCRIPT  ───────────────────────── -->
+<script>
+/*
+  Replace the two CONFIG values:
+    docTitle — the report's title (used as the H1 in markdown / "title" in JSON)
+    fileSlug — used as the download filename (e.g. "db-decision" → db-decision-answers.md)
+*/
+(function(){
+  const docTitle = "REPORT TITLE HERE";
+  const fileSlug = "report-filename";
+  const stampKey = "ihr-posted-" + location.pathname;
+
+  /* POSTED stamp — applied after any export action; persists in localStorage.
+     First stamp animates (slam-in). Restored on reload appears in final state. */
+  function nowStamp(){
+    const d = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function applyStamp(when, animate){
+    if(document.querySelector(".posted-stamp")) return;
+    const el = document.createElement("div");
+    el.className = "posted-stamp" + (animate ? " stamp-animate" : "");
+    el.innerHTML = "POSTED<span class=\"when\">" + when + "</span>";
+    document.body.appendChild(el);
+  }
+  function stamp(){
+    const existing = localStorage.getItem(stampKey);
+    if(existing){ applyStamp(existing, false); return; }
+    const when = nowStamp();
+    localStorage.setItem(stampKey, when);
+    applyStamp(when, true);
+  }
+  const prior = localStorage.getItem(stampKey);
+  if(prior) applyStamp(prior, false);
+
+  function collect(){
+    const sections = [];
+    document.querySelectorAll("textarea.note").forEach(t => {
+      const v = (t.value||"").trim();
+      if(!v) return;
+      sections.push({ label: t.dataset.q || "note", answer: v });
+    });
+    return sections;
+  }
+
+  function asMarkdown(sections){
+    const out = [`# ${docTitle}`, `_Exported ${new Date().toISOString()}_`, ""];
+    if(!sections.length){ out.push("_(no notes captured)_"); return out.join("\n"); }
+    sections.forEach(s => out.push(`## ${s.label}`, "", s.answer, ""));
+    return out.join("\n");
+  }
+
+  function asClaudePrompt(sections){
+    const md = asMarkdown(sections);
+    const escaped = md.replace(/'/g, "'\\''");
+    return `claude -p 'Here are my answers to "${docTitle}":\n\n${escaped}'`;
+  }
+
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1400);
+  }
+
+  async function copy(text, label){
+    try { await navigator.clipboard.writeText(text); toast(label); }
+    catch(e){ toast("Copy failed — use download"); }
+  }
+
+  document.getElementById("copyMdBtn").addEventListener("click", async () => {
+    await copy(asMarkdown(collect()), "Copied markdown"); stamp();
+  });
+
+  document.getElementById("dlBtn").addEventListener("click", () => {
+    const blob = new Blob([asMarkdown(collect())], {type:"text/markdown"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileSlug}-answers.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Downloaded"); stamp();
+  });
+
+  document.getElementById("claudeBtn").addEventListener("click", async () => {
+    await copy(asClaudePrompt(collect()), "Copied Claude prompt"); stamp();
+  });
+})();
+</script>
