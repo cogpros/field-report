@@ -144,6 +144,10 @@ The pattern uses four CSS variables: `--bg`, `--ink`, `--accent`, `--toast`. Def
 
 Each `<textarea class="note" data-q="LABEL">` registers that section's input. The export script walks every non-empty textarea, uses `data-q` as the section label or JSON key, and emits one of three formats. The buttons are wired with `addEventListener` — no framework, no build step. Checkbox state, toggle state, and textarea contents are written to `localStorage` keyed by file slug, and rehydrated on every page load.
 
+## Related tools
+
+- [checkpoint](https://github.com/cogpros/checkpoint), the display half to this skill's input half. Field-report captures your answers into the agent, checkpoint renders session state back out.
+
 ## License
 
 MIT. See `LICENSE.txt`.
