@@ -1,8 +1,8 @@
 # Field Report UI Feature Inventory
 
-Last updated: 2026-09-17 · Originally audited from 13 field reports over 48 hours (2026-05-17)
+Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports over 48 hours (2026-05-17)
 
-## Patterns (16 baseline + 2 optional + 3 foundational)
+## Patterns (17 baseline + 2 optional + 3 foundational)
 
 ### 1. Section Checkboxes (Top-Right)
 **Status:** Canonical
@@ -78,6 +78,12 @@ Last updated: 2026-09-17 · Originally audited from 13 field reports over 48 hou
 **What it does:** A small fixed panel (`#floatNotes`) anchored bottom-right that follows the reader down the page. Contains a header (click to collapse/expand, state persisted to localStorage) and a textarea mirroring the report's open-notes textarea — typing in either updates the other in real time, and both persist through the same localStorage slot the existing save/restore path already uses (the mirror textarea has no `data-q` on purpose; it pushes into the real textarea and dispatches `input` so the existing save path fires).
 **Origin:** user request, 2026-09-07: "is there a way to have the open notes section as a floating section that follows me the whole way down?"
 
+### 17. Agent wire (POST + presence)
+**Status:** Canonical (added 2026-09-17, template v2.3.0)
+**What it does:** A `POST` button (first in the button bar) and an `Agent` presence cell in the meta-status row. The page reads whether `window.lavish` exists, i.e. whether lavish-axi served it and an agent is polling. Listening: POST queues one prompt carrying the full markdown export plus a batch header (sections answered, sections changed since last POST) via `window.lavish.queuePrompt`, and the user presses lavish's Send to Agent. Nobody listening (file://, static server, tablet): POST copies the identical batch to the clipboard with an attach instruction (`npx -y lavish-axi <path>` then `poll`), so pasting it into any agent both delivers the answers and tells that agent how to start listening. "Copy as Claude prompt" carries the same instruction. Changed-since-last-POST is tracked per section in localStorage (`fr:lastpost:<slug>`).
+**Why:** NOW and LATER are a fact the page reads, never a mode the user picks. Origin: operator, 2026-09-17: "i want a choice about whether to run the now version or the later version… and the later version needs to have a copy command to put back into an agent to turn it into the now version."
+**Transport:** lavish-axi (github.com/kunchenguid/lavish-axi). Field-report ships no server. lavish stays optional: without it the page behaves exactly as v2.2.0 plus the attach instruction.
+
 ## Optional patterns (synthesis-heavy reports)
 
 ### O1. Five-Lens Panel (Parallel Reframes)
@@ -93,7 +99,7 @@ Last updated: 2026-09-17 · Originally audited from 13 field reports over 48 hou
 The button bar's collapse-to-dots / expand-on-hover behavior is part of feature 7. Counts as a single feature with the export buttons, not a separate baseline number.
 
 ## Feature Count
-- **Baseline (every report):** 16 numbered patterns
+- **Baseline (every report):** 17 numbered patterns
 - **Optional (synthesis-heavy reports):** 2 patterns (five-lens panel, synthesis block)
 - **Foundational (color scheme, fonts, spacing — not numbered above):** 3
 

@@ -7,10 +7,10 @@ description: >
   Manually invoked when the user asks for a "field report" or says "use
   field-report for this". Generates an interactive HTML report (textareas after
   every question, three export buttons, light/dark, localStorage) from a
-  canonical template — 16 baseline features + 2 optional patterns. Do NOT
+  canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.2.0
+version: 2.3.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.2.0
+# Skill: field-report v2.3.0
 
 ## Purpose
 
@@ -60,9 +60,14 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
 
 2. Edit the copy: replace placeholders, add sections.
 
-3. Save. Open in the browser without stealing focus (on macOS `open -g`
-   opens in the background; if your setup has a hook that blocks bare
-   `open`, this is the form it allows):
+3. Save. Open it so an agent can listen (v2.3.0). If lavish-axi is available,
+   serve the file through it and start the poll; otherwise open the file
+   directly. Never steal focus (`open -g` on macOS).
+   # with lavish-axi (recommended): one session per file, agent long-polls
+   npx -y lavish-axi "${REPORTS_DIR}/<your-report-slug>.html" --no-open
+   open -g "<session url printed above>"
+   npx -y lavish-axi poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
+   # without lavish-axi
    # macOS: open -g  |  Linux: xdg-open  |  Windows: start
    open -g "${REPORTS_DIR}/<your-report-slug>.html"
 
@@ -75,19 +80,20 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
 
 5. Deliver the report as the LAST lines of your chat reply, in a form the
    user can click or paste. No trailing prose, no follow-up question after
-   it. Format (both lines, URL first, absolute path second):
+   it. Format (URL first, absolute path second):
 
-       Report: ${REPORTS_URL}/<your-report-slug>.html
+       Report: <lavish session url, or ${REPORTS_URL}/<your-report-slug>.html>
        File:   ${REPORTS_DIR}/<your-report-slug>.html
 
-   `REPORTS_URL` is whatever serves `REPORTS_DIR` over HTTP (a local static
-   server, a tailnet host for a tablet, etc.); omit the line if nothing does.
-   The URL is clickable in the terminal; the absolute path is clickable in
-   Claude Code. A bare filename is neither. The user grep-scans the bottom of
-   the chat to find it; anything after these lines pushes them out of view.
+   Deliver ONE url and always the same one. localStorage is per origin, so a
+   report opened by file:// and later through lavish keeps two separate sets
+   of answers. The lavish session url is reachable from a tablet over a
+   tailnet; a bare filename is clickable nowhere. The user grep-scans the
+   bottom of the chat to find it; anything after these lines pushes them out
+   of view.
 ```
 
-The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 16 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
+The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 17 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
 
 **When to deviate:** the user may explicitly request a one-off shape (a read-only HTML, no textareas, for example). That is a different artifact — note it explicitly and ship the simpler file without this skill's enforcement.
 
@@ -105,13 +111,14 @@ All placeholders use `{NAME_PLACEHOLDER}` form. Replace every one before saving.
 | `{REPORT_TYPE_PLACEHOLDER}` | One-line context (e.g. `architecture decision · 4 options`) |
 | `{CHANGELOG_PLACEHOLDER}` | Empty on fresh reports (the changelog auto-hides). On each patch/reopen, **prepend** one row — `<div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>` — newest first. This is where updates go; never grow the status line into a ·-chain. |
 | `{TOMORROW_BANNER_PLACEHOLDER}` | Optional, empty by default. Fill with the `#tomorrowBell` snippet (see template comment) to put ONE user-chosen next action at the very top — the cheapest/most time-critical open item. |
+| `{REPORT_PATH_PLACEHOLDER}` | Absolute path of the saved report, e.g. `${REPORTS_DIR}/<slug>.html`. The agent wire prints it in the attach instruction; falls back to `location.pathname` if left unreplaced. |
 | `{SUBTITLE_PLACEHOLDER}` | Sub-heading text under H1 |
 | `{SESSION_NOTES_PLACEHOLDER}` | Short note about session context (e.g. `synthesizes 7 checkpointed sessions`) |
 | `{LEDE_TEXT_PLACEHOLDER}` | First paragraph; sets up the report. 2-4 sentences. |
 
-## The 16 baseline features + 2 optional patterns
+## The 17 baseline features + 2 optional patterns
 
-All patterns are catalogued in `references/feature-inventory.md`. The canonical template ships with all of them wired correctly — copying the template inherits them automatically. The two optional patterns (five-lens panel, synthesis block) are included for synthesis-heavy reports; the 16 baseline features ship in every report.
+All patterns are catalogued in `references/feature-inventory.md`. The canonical template ships with all of them wired correctly — copying the template inherits them automatically. The two optional patterns (five-lens panel, synthesis block) are included for synthesis-heavy reports; the 17 baseline features ship in every report.
 
 Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-shape reports interrupt the user's flow. Match the template; let downstream changes ride through the template, not per-report.
 
@@ -133,6 +140,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
 16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header
+17. **Agent wire (POST + presence)** — `#postBtn` and the `Agent` cell in the meta row. Reads `window.lavish`: listening → POST queues one prompt (full export + changed-sections header) for lavish's Send to Agent; nobody listening → POST copies the same batch with an attach instruction. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
 
@@ -169,6 +177,19 @@ Each section in the report follows this shape:
 - `data-q` on toggles and textareas: short, lowercase, hyphenated. Becomes the heading in exported markdown.
 - Placeholder text on textareas is the agent's recommendation written so the user can accept it on Tab or rewrite freely. Pre-fill choices the user can reshape.
 
+## Closing the loop (v2.3.0)
+
+A report has two states and the page reads which one it is in; the user never picks.
+
+- **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`. POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
+- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi <path>` and `poll`, and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
+
+**Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-poll (`lavish-axi poll <file> --agent-reply "<one-line receipt>"`).
+
+**End.** The user's **Send & End** or **End session** returns `ended` from the poll: stop polling, deliver anything left in chat, do not reopen uninvited. `browser_disconnected` means the tab closed: ask before reopening or ending.
+
+**lavish settings worth fixing once, in the seat that launches your agent:** `LAVISH_AXI_TELEMETRY=0` (lavish reports command names, version and platform to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server resident so a half-filled report's link never goes dead). Pin the version you tested against, and read lavish's CHANGELOG.md and VISION.md before bumping.
+
 ## Pre-save checklist
 
 Run mentally before opening in the browser:
@@ -180,7 +201,8 @@ Run mentally before opening in the browser:
 - [ ] `docTitle`, `fileSlug`, `sessionId` in the JS at the bottom match the placeholders
 - [ ] Status-line timestamps real; each patch added a changelog row (newest first), not appended to the status line
 - [ ] File saved to `${REPORTS_DIR}`
-- [ ] Opened in the browser (`open -g <path>` on macOS, equivalent elsewhere)
+- [ ] `{REPORT_PATH_PLACEHOLDER}` is the real absolute path
+- [ ] Opened through lavish-axi and the poll is running, or opened directly with `open -g` if lavish is unavailable
 
 ## Anti-patterns (user complaints these cause)
 
@@ -205,7 +227,7 @@ When the user names a new feature or a bug is fixed:
 
 **Required files (bundled in this skill):**
 - `references/canonical-template.html` — single source of truth template. Every report copies this.
-- `references/feature-inventory.md` — 17-pattern catalogue with status, exemplar reports, implementation notes.
+- `references/feature-inventory.md` — 17-baseline + 2-optional catalogue with status, exemplar reports, implementation notes.
 - `references/example.html` — AI-agent-decision worked example (self-referential: agent asks the developer which skills to install before scaffolding).
 - `references/example-legacy-database.html` — earlier worked example (v2.0 pattern, "choose a database"). Kept for the textarea + export pattern at minimum surface area.
 - `references/interactive-pattern-snippet.html` — paste-ready snippet (legacy v1 — kept for reference).
@@ -231,7 +253,7 @@ event = {
   'category': 'workflow'
 }
 print(json.dumps(event))
-" "<report-slug>.html · sections=<N> · template_version=2.2.0" >> "${BUS_LOG:-/dev/null}"
+" "<report-slug>.html · sections=<N> · template_version=2.3.0" >> "${BUS_LOG:-/dev/null}"
 ```
 
 Set `BUS_LOG` to your project's bus file, or pipe to whatever event sink you use. If you have no bus, skip this step.
@@ -261,10 +283,10 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 
 ## Roadmap
 
-- **v2.2** — File System Access API integration (browser-native file moves on POSTED).
-- **v2.3** — Adopter-facing scorecard + README walkthroughs of the 17 features.
-- **v2.4** — Skill-doctor 14-Q pass to lock health ≥ 11/14.
+- **v2.4** — Adopter-facing scorecard + README walkthroughs of the 17 features.
+- **v2.5** — Skill-doctor 14-Q pass to lock health ≥ 11/14.
+- Dropped: File System Access sidecar (lavish is the wire; a disk sidecar would fork the answer store).
 
 ## Origin
 
-The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner.
+The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode.

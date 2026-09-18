@@ -194,6 +194,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     <span class="ms"><b>Patched</b> {PATCH_TIMESTAMP_PLACEHOLDER}</span>
     <span class="ms"><b>Opened</b> <span id="openedAt">now</span></span>
     <span class="ms">{REPORT_TYPE_PLACEHOLDER}</span>
+    <span class="ms" id="presence" title="v2.3.0 agent wire: read from window.lavish"><b>Agent</b> <span id="presenceText">checking…</span></span>
   </div>
   <!-- CHANGELOG: on patch/reopen, prepend one row here, newest first:
        <div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>
@@ -294,6 +295,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 
 <!-- Fixed button bar: copy markdown, download .md, copy as Claude prompt (collapse/expand on hover) -->
 <div class="bar">
+  <button id="postBtn" class="pink" title="POST answers: to the listening agent when one is attached, else to the clipboard">POST</button>
   <button id="copyMdBtn" class="pink" title="Copy markdown">Copy markdown</button>
   <button id="downloadMdBtn" class="brown" title="Download .md">Download .md</button>
   <button id="claudeBtn" class="amber" title="Copy as Claude prompt">Copy as Claude prompt</button>
@@ -305,6 +307,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   const docTitle="{REPORT_TITLE_PLACEHOLDER}";
   const fileSlug="{FILE_SLUG_PLACEHOLDER}";
   const sessionId="{SESSION_ID_PLACEHOLDER}";
+  const reportPath="{REPORT_PATH_PLACEHOLDER}"; // absolute path on disk; the agent wire and COPY payload name it
   const storeKey=fileSlug;
   const stampKey="posted_"+location.pathname;
 
@@ -465,9 +468,45 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     }catch(e){return false}
   }
 
+
+  // ---- v2.3.0 agent wire (feature 17) ----
+  // NOW vs LATER is a fact the page reads, never a mode you pick: when lavish-axi
+  // served this page it injected window.lavish and an agent is polling. Otherwise
+  // (file://, a static server, a tablet) nobody is listening and POST copies the
+  // same batch to the clipboard with an instruction that lets any agent attach.
+  const wire={
+    live(){return !!(window.lavish && typeof window.lavish.queuePrompt==="function")},
+    pathHint(){return (reportPath && !/PLACEHOLDER/.test(reportPath)) ? reportPath : decodeURIComponent(location.pathname)},
+    lastKey:"fr:lastpost:"+fileSlug,
+    snapshot(){const o={};document.querySelectorAll("section.s").forEach(sec=>{const id=sec.dataset.section;const parts=[];sec.querySelectorAll(".toggles[data-q]").forEach(g=>{const a=[...g.querySelectorAll(".toggle.active")].map(x=>x.textContent.trim());if(a.length)parts.push(g.dataset.q+"="+a.join(","))});sec.querySelectorAll("textarea.note").forEach(t=>{const v=(t.value||"").trim();if(v)parts.push(t.dataset.q+"="+v)});if(sec.classList.contains("done"))parts.push("done");o[id]=parts.join("\n")});return o},
+    batch(){
+      let prev={};try{prev=JSON.parse(localStorage.getItem(this.lastKey)||"{}")}catch(e){}
+      const now=this.snapshot();
+      const items=Object.keys(now).map(id=>({id,changed:now[id]!==(prev[id]||""),answered:!!now[id],text:now[id]}));
+      return {slug:fileSlug,session:sessionId,path:this.pathHint(),changed:items.filter(i=>i.changed).map(i=>i.id),items};
+    },
+    prompt(b){
+      const lines=[`Field report "${docTitle}" (${b.slug}) · ${b.items.filter(i=>i.answered).length}/${b.items.length} sections answered · changed since last POST: ${b.changed.length?b.changed.join(", "):"none"}`,
+        "Act on the answers below. Reply with one line per section id: done (with evidence), deferred (why), or rejected (why). Account for every id before reporting completion.","",gather()];
+      return lines.join("\n");
+    },
+    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi ${b.path}`,`  npx -y lavish-axi poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
+    remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
+    async post(){
+      const b=this.batch();
+      if(this.live()){
+        window.lavish.queuePrompt(this.prompt(b),{tag:"field-report",text:`POST ${b.slug} · ${b.changed.length} changed`,queueKey:"field-report:"+b.slug,data:{slug:b.slug,session:b.session,path:b.path,changed:b.changed,items:b.items.map(i=>({id:i.id,changed:i.changed,answered:i.answered}))}});
+        this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return;
+      }
+      if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Nobody listening · copied with attach instructions");stamp()}else{toast("Copy failed")}
+    },
+    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (then press Send to Agent)":"POST answers: nobody listening, copies the batch with attach instructions"}
+  };
+  wire.presence();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
+  document.getElementById("postBtn").addEventListener("click",()=>wire.post());
   document.getElementById("copyMdBtn").addEventListener("click",async()=>{if(await copyText(gather())){toast("Copied markdown");stamp()}else{toast("Copy failed")}});
   document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});
-  document.getElementById("claudeBtn").addEventListener("click",async()=>{const md=gather();const escaped=md.replace(/'/g, "'\\''");const cmd="claude -p '"+escaped+"'";if(await copyText(cmd)){toast("Copied as Claude prompt");stamp()}else{toast("Copy failed")}});
+  document.getElementById("claudeBtn").addEventListener("click",async()=>{const md=gather();const escaped=md.replace(/'/g, "'\\''");const cmd="claude -p '"+escaped+"'"+wire.instruction(wire.batch());if(await copyText(cmd)){toast("Copied as Claude prompt");stamp()}else{toast("Copy failed")}});
 
   // Per-block code copy icons — wrap every <pre>, add a small copy button top-right
   document.querySelectorAll("pre").forEach(pre=>{

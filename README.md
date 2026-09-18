@@ -20,7 +20,7 @@ If you have ever answered five agent questions in chat and watched it confuse yo
 
 ## What's in the box
 
-Every report the skill produces comes from one canonical template (`references/canonical-template.html`). Copying that template inherits **16 baseline features plus 2 optional patterns** wired correctly — no per-report re-implementation, no drift between reports.
+Every report the skill produces comes from one canonical template (`references/canonical-template.html`). Copying that template inherits **17 baseline features plus 2 optional patterns** wired correctly — no per-report re-implementation, no drift between reports.
 
 **Interactive input (the core pattern):**
 - A textarea after every question, answered in place
@@ -152,6 +152,13 @@ MIT. See `LICENSE.txt`.
 
 Read `DESIGN.md` for the full why. Short version: I kept getting walls of HTML decisions from Claude, answering them by hand in chat, and losing structure. The pattern was extracted from reports I had been hand-building, then enforced as a skill so I (and my agents) stopped forgetting parts of it.
 
+## Works with lavish-axi (v2.3.0)
+
+Field-report is the page. [lavish-axi](https://github.com/kunchenguid/lavish-axi) is an optional wire that lets a live agent receive your answers without a paste. Serve a report through it and the page shows `Agent listening`; press **POST**, then lavish's **Send to Agent**, and the agent blocked in `lavish-axi poll` gets the full export plus a list of which sections changed. Opened without lavish, the same POST button copies the same batch to the clipboard with an attach instruction, so you can paste it into any agent later and that agent knows how to start listening. Field-report ships no server, and everything still works with lavish absent.
+
+Two lavish settings to fix once in whatever launches your agent: `LAVISH_AXI_TELEMETRY=0` (it reports usage to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server up so a half-filled report's link never dies). Pin the version you tested.
+
 ## Related tools
 
 - [checkpoint](https://github.com/cogpros/checkpoint), the display half to this skill's input half. Field-report captures your answers into the agent, checkpoint renders session state back out.
+- [lavish-axi](https://github.com/kunchenguid/lavish-axi), the optional wire between the page and a polling agent (see above).
