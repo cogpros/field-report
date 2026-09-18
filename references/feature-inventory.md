@@ -77,6 +77,7 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 **Status:** Canonical (added 2026-09-07, template v2.2.0)
 **What it does:** A small fixed panel (`#floatNotes`) anchored bottom-right that follows the reader down the page. Contains a header (click to collapse/expand, state persisted to localStorage) and a textarea mirroring the report's open-notes textarea — typing in either updates the other in real time, and both persist through the same localStorage slot the existing save/restore path already uses (the mirror textarea has no `data-q` on purpose; it pushes into the real textarea and dispatches `input` so the existing save path fires).
 **Origin:** user request, 2026-09-07: "is there a way to have the open notes section as a floating section that follows me the whole way down?"
+**v2.3.0 note:** hidden while an agent is listening (lavish present); lavish's Conversation panel takes its place. Operator, 2026-09-17, annotating the panel inside lavish: "this notes section is no longer needed". Still shown on direct opens.
 
 ### 17. Agent wire (POST + presence)
 **Status:** Canonical (added 2026-09-17, template v2.3.0)

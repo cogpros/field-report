@@ -500,7 +500,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
       }
       if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Nobody listening · copied with attach instructions");stamp()}else{toast("Copy failed")}
     },
-    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (then press Send to Agent)":"POST answers: nobody listening, copies the batch with attach instructions"}
+    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (then press Send to Agent)":"POST answers: nobody listening, copies the batch with attach instructions"}
   };
   wire.presence();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
   document.getElementById("postBtn").addEventListener("click",()=>wire.post());

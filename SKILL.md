@@ -139,7 +139,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 13. **Light/Dark mode toggle (top-right)** — default dark, button text `→ Light` / `→ Dark`, persists to localStorage
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
-16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header
+16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
 17. **Agent wire (POST + presence)** — `#postBtn` and the `Agent` cell in the meta row. Reads `window.lavish`: listening → POST queues one prompt (full export + changed-sections header) for lavish's Send to Agent; nobody listening → POST copies the same batch with an attach instruction. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
