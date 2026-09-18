@@ -1,13 +1,16 @@
 ---
 name: field-report
+triggers:
+  - "/field-report"
+  - "field report"
 description: >
   Manually invoked when the user asks for a "field report" or says "use
   field-report for this". Generates an interactive HTML report (textareas after
   every question, three export buttons, light/dark, localStorage) from a
-  canonical template — 15 baseline features + 2 optional patterns. Do NOT
+  canonical template — 16 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.1.1
+version: 2.2.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -17,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.1.1
+# Skill: field-report v2.2.0
 
 ## Purpose
 
@@ -45,6 +48,8 @@ The skill writes every report into one directory the user chose at install time.
 
 After first run, the agent does not pick a default and does not ask again. The variable `${REPORTS_DIR}` is used below to stand for whichever path resolved.
 
+Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names an HTTP base that serves the same directory, e.g. a local static server. `${REPORTS_URL}` below stands for it; when unset, the delivery step prints only the file path.
+
 > **Note:** the three-step resolver is agent behavior, not a shipped script. Subsequent invocations read the `reports_dir:` line from `CLAUDE.md`. If you want it deterministic, drop a small wrapper in `~/.local/bin` that reads the env var first and falls back to a grep of CLAUDE.md.
 
 ## The procedure
@@ -55,14 +60,34 @@ After first run, the agent does not pick a default and does not ask again. The v
 
 2. Edit the copy: replace placeholders, add sections.
 
-3. Save. Open in the browser:
-   # macOS: open  |  Linux: xdg-open  |  Windows: start
-   open "${REPORTS_DIR}/<your-report-slug>.html"
+3. Save. Open in the browser without stealing focus (on macOS `open -g`
+   opens in the background; if your setup has a hook that blocks bare
+   `open`, this is the form it allows):
+   # macOS: open -g  |  Linux: xdg-open  |  Windows: start
+   open -g "${REPORTS_DIR}/<your-report-slug>.html"
 
 4. Emit a bus event (see Observability section) if your project has one.
+
+4b. Do NOT publish a second copy (e.g. a hosted Artifact mirror). The local
+   file is the only copy: localStorage does not sync across origins, so two
+   copies split the user's answers. If you run a post-write guard hook, it
+   only needs to check that the HTML matches the canonical template.
+
+5. Deliver the report as the LAST lines of your chat reply, in a form the
+   user can click or paste. No trailing prose, no follow-up question after
+   it. Format (both lines, URL first, absolute path second):
+
+       Report: ${REPORTS_URL}/<your-report-slug>.html
+       File:   ${REPORTS_DIR}/<your-report-slug>.html
+
+   `REPORTS_URL` is whatever serves `REPORTS_DIR` over HTTP (a local static
+   server, a tailnet host for a tablet, etc.); omit the line if nothing does.
+   The URL is clickable in the terminal; the absolute path is clickable in
+   Claude Code. A bare filename is neither. The user grep-scans the bottom of
+   the chat to find it; anything after these lines pushes them out of view.
 ```
 
-The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 15 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
+The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 16 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
 
 **When to deviate:** the user may explicitly request a one-off shape (a read-only HTML, no textareas, for example). That is a different artifact — note it explicitly and ship the simpler file without this skill's enforcement.
 
@@ -76,15 +101,17 @@ All placeholders use `{NAME_PLACEHOLDER}` form. Replace every one before saving.
 | `{REPORT_TITLE_PLACEHOLDER}` | Human-readable title (used in `<title>`, `<h1>`, and exported markdown header) |
 | `{FILE_SLUG_PLACEHOLDER}` | Kebab-case slug matching the filename without `.html` (used as localStorage key) |
 | `{TIMESTAMP_PLACEHOLDER}` | Compile timestamp `YYYY-MM-DD HH:MM` plus timezone (when you first wrote the file) |
-| `{PATCH_TIMESTAMP_PLACEHOLDER}` | Same as compile on first write. Update to current time on every subsequent edit. |
+| `{PATCH_TIMESTAMP_PLACEHOLDER}` | Same as compile on first write. Update to current time on every subsequent edit (and add a changelog row — see below). |
 | `{REPORT_TYPE_PLACEHOLDER}` | One-line context (e.g. `architecture decision · 4 options`) |
+| `{CHANGELOG_PLACEHOLDER}` | Empty on fresh reports (the changelog auto-hides). On each patch/reopen, **prepend** one row — `<div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>` — newest first. This is where updates go; never grow the status line into a ·-chain. |
+| `{TOMORROW_BANNER_PLACEHOLDER}` | Optional, empty by default. Fill with the `#tomorrowBell` snippet (see template comment) to put ONE user-chosen next action at the very top — the cheapest/most time-critical open item. |
 | `{SUBTITLE_PLACEHOLDER}` | Sub-heading text under H1 |
 | `{SESSION_NOTES_PLACEHOLDER}` | Short note about session context (e.g. `synthesizes 7 checkpointed sessions`) |
 | `{LEDE_TEXT_PLACEHOLDER}` | First paragraph; sets up the report. 2-4 sentences. |
 
-## The 15 baseline features + 2 optional patterns
+## The 16 baseline features + 2 optional patterns
 
-All patterns are catalogued in `references/feature-inventory.md`. The canonical template ships with all of them wired correctly — copying the template inherits them automatically. The two optional patterns (five-lens panel, synthesis block) are included for synthesis-heavy reports; the 15 baseline features ship in every report.
+All patterns are catalogued in `references/feature-inventory.md`. The canonical template ships with all of them wired correctly — copying the template inherits them automatically. The two optional patterns (five-lens panel, synthesis block) are included for synthesis-heavy reports; the 16 baseline features ship in every report.
 
 Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-shape reports interrupt the user's flow. Match the template; let downstream changes ride through the template, not per-report.
 
@@ -104,12 +131,14 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 12. **Toggle groups** — `.toggles` with `.toggle.go/.defer/.kill` colored states
 13. **Light/Dark mode toggle (top-right)** — default dark, button text `→ Light` / `→ Dark`, persists to localStorage
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
-15. **Three-timestamp header** — Compiled (static) · Patched (static, update on edit) · Opened (live via JS)
+15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
+16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header
 
 **Optional (synthesis-heavy reports):**
 
 - **Five-lens panel** — five `.lens-card` perspectives in a grid, each with its own textarea
 - **Synthesis block** — italic serif summary of preceding section (use `.synthesis` element)
+- **"DO THIS TOMORROW" banner** — `#tomorrowBell` at the very top naming ONE user-chosen next action (the cheapest/most time-critical open item). Fill `{TOMORROW_BANNER_PLACEHOLDER}`; empty renders nothing.
 
 The canonical template has every one of these wired correctly. Do not reimplement — copy from the template.
 
@@ -149,9 +178,9 @@ Run mentally before opening in the browser:
 - [ ] Every textarea has `data-q`
 - [ ] Every toggle group has `data-q`
 - [ ] `docTitle`, `fileSlug`, `sessionId` in the JS at the bottom match the placeholders
-- [ ] Three timestamps in the row-time line are real
+- [ ] Status-line timestamps real; each patch added a changelog row (newest first), not appended to the status line
 - [ ] File saved to `${REPORTS_DIR}`
-- [ ] Opened in the browser (`open <path>` on macOS, equivalent elsewhere)
+- [ ] Opened in the browser (`open -g <path>` on macOS, equivalent elsewhere)
 
 ## Anti-patterns (user complaints these cause)
 
@@ -161,6 +190,7 @@ Run mentally before opening in the browser:
 - **Timestamp stale when I open it next day** → you skipped feature 17 (three-timestamp header). Mandatory.
 - **Checkbox click freezes the page** → the freeze-fix CSS (no layout shift) + JS (try/catch + requestAnimationFrame) is in the template. Do not rewrite the JS.
 - **Restart prompts run together** → use a `.restart-prompt` block when a section is a copy-paste prompt to launch a session.
+- **"Which report did you make? I have to scroll up to find it"** → you skipped step 5 of the procedure. The filename MUST be the last line of your chat reply (no prose after, no follow-up question, no recommendation). User scans the bottom of the message for it.
 
 ## Updating the template
 
@@ -201,7 +231,7 @@ event = {
   'category': 'workflow'
 }
 print(json.dumps(event))
-" "<report-slug>.html · sections=<N> · template_version=2.1.1" >> "${BUS_LOG:-/dev/null}"
+" "<report-slug>.html · sections=<N> · template_version=2.2.0" >> "${BUS_LOG:-/dev/null}"
 ```
 
 Set `BUS_LOG` to your project's bus file, or pipe to whatever event sink you use. If you have no bus, skip this step.
@@ -237,4 +267,4 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 
 ## Origin
 
-The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons.
+The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner.

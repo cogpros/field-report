@@ -97,6 +97,18 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 .progress-label{position:fixed;top:8px;right:14px;font:700 11px/1 ui-monospace,Menlo,monospace;color:var(--brown);text-transform:uppercase;letter-spacing:.08em;z-index:55;padding:4px 10px;background:var(--card);border:1px solid var(--rule);border-radius:4px}
 
 .row-time{color:var(--brown);font-size:.85em;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2em}
+/* Readable meta-header: a compact status line over an OPTIONAL stacked changelog. On patch/reopen, prepend a `.ml` row to `.meta-log` (newest first) — never grow the status line into a ·-chain. Empty changelog auto-hides. */
+#metaHeader{text-transform:none;font-size:1em;letter-spacing:normal;margin-bottom:16px}
+#metaHeader .meta-status{display:flex;flex-wrap:wrap;gap:5px 14px;align-items:center;margin-bottom:9px}
+#metaHeader .ms{font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim)}
+#metaHeader .ms b{color:var(--brown);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+#metaHeader .tag-reopen{color:#000;background:var(--amber);padding:1px 8px;border-radius:3px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+#metaHeader .meta-log{display:flex;flex-direction:column;gap:4px;border-left:3px solid var(--brown);padding:4px 0 4px 12px;margin-top:2px}
+#metaHeader .meta-log:not(:has(.ml)){display:none}
+#metaHeader .mlhead{font:700 9px/1 ui-monospace,Menlo,monospace;color:var(--brown);text-transform:uppercase;letter-spacing:.09em;margin-bottom:3px}
+#metaHeader .ml{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);display:flex;gap:10px;align-items:baseline}
+#metaHeader .ml .mld{flex:0 0 auto;min-width:78px;color:var(--brown);font-weight:700}
+#metaHeader .ml .mlx{color:var(--dim)}
 
 .posted-stamp{position:fixed;top:30%;left:50%;font:900 90px/1 ui-monospace,Menlo,monospace;color:var(--stamp);opacity:0;letter-spacing:.04em;pointer-events:none;z-index:40;transform:translate(-50%,-50%) rotate(-15deg) scale(1);text-shadow:2px 2px 0 rgba(0,0,0,0.4);white-space:nowrap;text-align:center}
 .posted-stamp .ts{display:block;font:700 22px/1.2 ui-monospace,Menlo,monospace;margin-top:6px;letter-spacing:.08em}
@@ -121,17 +133,76 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 .synthesis::before{content:"synthesis · 3 lines";display:block;font:700 10px/1 ui-monospace,Menlo,monospace;color:var(--brown);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;font-style:normal}
 
 .card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px 20px 14px;margin:14px 0 18px;box-shadow:0 1px 0 #0000000a}
+
+/* Zoom / narrow-viewport safety — keeps text from colliding with fixed+absolute chrome when the operator zooms in (browser zoom shrinks effective CSS width, triggering this). Added v2.1.2. */
+@media (max-width:820px){
+  body{padding:60px 14px 132px}
+  h1{font-size:22px;line-height:1.15}
+  .row-time{font-size:.78em}
+  .mode-toggle{top:4px;right:8px;font-size:10px;padding:4px 8px}
+  .progress-label{display:none}
+  .totals{grid-template-columns:1fr 1fr}
+  section.s h2{font-size:17px;padding-right:0}
+  section.s .check{position:static;margin:0 0 8px}
+  section.s .check input{width:20px;height:20px}
+  .bar{right:8px;bottom:8px}
+  .posted-stamp{font-size:46px}
+  .lens-grid{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  h1{font-size:18px}
+  .totals{grid-template-columns:1fr}
+  .toggle{font-size:11px;padding:5px 9px}
+}
+/* OPTIONAL "DO THIS TOMORROW" banner — one operator-chosen next action at the very top. Filled via {TOMORROW_BANNER_PLACEHOLDER}; nothing renders when the placeholder is left empty. */
+@keyframes bellpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,196,0,.7),0 0 22px rgba(255,120,0,.55)}50%{box-shadow:0 0 0 10px rgba(255,196,0,0),0 0 34px rgba(255,80,0,.85)}}
+@keyframes bellshake{0%,92%,100%{transform:rotate(0)}94%{transform:rotate(13deg)}96%{transform:rotate(-11deg)}98%{transform:rotate(7deg)}}
+#tomorrowBell{margin:14px 0 6px;padding:16px 20px;border-radius:14px;border:3px solid #ff7a00;background:linear-gradient(100deg,#fff2b0,#ffd36b 45%,#ffb14d);color:#5a2b00;font-weight:800;text-align:center;animation:bellpulse 1.6s ease-in-out infinite}
+#tomorrowBell .big{font-size:1.45em;letter-spacing:.3px;display:block}
+#tomorrowBell .b{display:inline-block;animation:bellshake 2.2s ease-in-out infinite;font-size:1.2em}
+#tomorrowBell .sub{font-weight:600;font-size:.92em;opacity:.9;display:block;margin-top:5px;color:#6b3400}
+@media (prefers-reduced-motion:reduce){#tomorrowBell,#tomorrowBell .b{animation:none}}
+
+/* Floating notes panel (v2.2.0): follows the reader; mirrors the open-notes textarea */
+#floatNotes{position:fixed;right:18px;bottom:72px;width:min(320px,calc(100vw - 36px));z-index:60;background:var(--card,#1b1b1f);color:inherit;border:1px solid var(--rule,#333);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px}
+#floatNotes .fn-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:pointer;user-select:none;opacity:.85}
+#floatNotes textarea{display:block;width:100%;box-sizing:border-box;min-height:120px;max-height:40vh;resize:vertical;border:0;border-top:1px solid var(--rule,#333);background:transparent;color:inherit;padding:8px 10px;font:inherit}
+#floatNotes.collapsed textarea{display:none}
+@media (max-width:700px){#floatNotes{bottom:120px}}
+@media print{#floatNotes{display:none}}
 </style>
 </head>
 <body data-session-id="{SESSION_ID_PLACEHOLDER}">
 
 <button id="modeBtn" class="mode-toggle" title="Toggle light/dark mode">→ Light</button>
 
+<!-- OPTIONAL "DO THIS TOMORROW" banner — one operator-chosen next action; empty by default.
+     Fill with:
+     <div id="tomorrowBell">
+       <span class="big"><span class="b">🔔</span> DO THIS TOMORROW <span class="b">🔔</span></span>
+       <span class="sub"><b>ACTION TITLE</b> — what to do · ~how long · why it's the cheapest/most time-critical open item</span>
+     </div> -->
+{TOMORROW_BANNER_PLACEHOLDER}
+
 <!-- OPTIONAL: Progress bar + label -->
 <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
 <div class="progress-label" id="progressLabel">0 / N sections</div>
 
-<div class="row-time">Compiled {TIMESTAMP_PLACEHOLDER} · Patched {PATCH_TIMESTAMP_PLACEHOLDER} · Opened <span id="openedAt">now</span> · {REPORT_TYPE_PLACEHOLDER}</div>
+<div class="row-time" id="metaHeader">
+  <div class="meta-status">
+    <span class="ms"><b>Compiled</b> {TIMESTAMP_PLACEHOLDER}</span>
+    <span class="ms"><b>Patched</b> {PATCH_TIMESTAMP_PLACEHOLDER}</span>
+    <span class="ms"><b>Opened</b> <span id="openedAt">now</span></span>
+    <span class="ms">{REPORT_TYPE_PLACEHOLDER}</span>
+  </div>
+  <!-- CHANGELOG: on patch/reopen, prepend one row here, newest first:
+       <div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>
+       Leave empty on fresh reports (auto-hides). Keep "Patched {date}" in the status line above — the stale-stamp guard reads it. -->
+  <div class="meta-log">
+    <div class="mlhead">Changelog — newest first</div>
+    {CHANGELOG_PLACEHOLDER}
+  </div>
+</div>
 <h1>{REPORT_TITLE_PLACEHOLDER}</h1>
 <div class="sub">{SUBTITLE_PLACEHOLDER}</div>
 <div class="session-tag"><b>Session:</b> <code>{SESSION_ID_PLACEHOLDER}</code> · {SESSION_NOTES_PLACEHOLDER}</div>
@@ -215,6 +286,9 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 <!-- OPTIONAL: Synthesis block -->
 <div class="synthesis">Synthesis summary of the five perspectives goes here. Three sentences max.</div>
 
+<!-- Floating notes (v2.2.0): mirrors the open-notes textarea; collapse with the header -->
+<div id="floatNotes"><div class="fn-head"><span>✎ notes (follows you)</span><span class="fn-toggle">▾</span></div><textarea id="floatNotesTa" placeholder="notes that follow you down the page"></textarea></div>
+
 <!-- POSTED stamp (triggered on copy) -->
 <div id="postedStamp" class="posted-stamp"><span class="text">POSTED</span><span class="ts"></span></div>
 
@@ -239,8 +313,8 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     const el=document.getElementById("openedAt");
     if(!el) return;
     const d=new Date();
-    const pad=n=>String(n).padStart(2,"0");
-    el.textContent=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+" CST";
+    const fmt=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Regina",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+    el.textContent=fmt.format(d).replace(",","")+" CST";
   })();
 
   // Light/Dark mode toggle — default dark, persisted per report
@@ -329,11 +403,28 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   document.querySelectorAll("textarea.note").forEach(t=>t.addEventListener("input",save));
 
   // POSTED stamp
-  function pad(n){return String(n).padStart(2,"0")}
-  function fmtTs(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())}
+  function fmtTs(d){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Regina",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d).replace(",","")}
   function showStamp(ts, animate){const el=document.getElementById("postedStamp");el.querySelector(".ts").textContent=ts;if(animate){el.classList.remove("show");el.classList.add("slam");el.classList.add("show");setTimeout(()=>el.classList.remove("slam"), 500)} else {el.classList.add("show")}}
   function stamp(){const ts=fmtTs(new Date());try{localStorage.setItem(stampKey, ts)}catch(e){};showStamp(ts, true)}
-  try{const prior=localStorage.getItem(stampKey);if(prior) showStamp(prior, false)}catch(e){}
+  // Stale-stamp guard: if doc was patched after the export, the prior POSTED is stale.
+  try{
+    const prior=localStorage.getItem(stampKey);
+    if(prior){
+      const rowTime=(document.querySelector(".row-time")||{}).textContent||"";
+      const m=rowTime.match(/Patched\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
+      let stale=false;
+      if(m){
+        const patchedTime=new Date(m[1].replace(" ","T")+":00").getTime();
+        const postedTime=new Date(prior.replace(" ","T")+":00").getTime();
+        if(!isNaN(patchedTime) && !isNaN(postedTime) && patchedTime>postedTime) stale=true;
+      }
+      if(stale){
+        localStorage.removeItem(stampKey);
+      } else {
+        showStamp(prior, false);
+      }
+    }
+  }catch(e){}
 
   function gather(){
     const out=[`# ${docTitle}`,`_Exported ${new Date().toISOString()}_`,"",`session-id: ${sessionId}`,""];
@@ -347,9 +438,36 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   }
   function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),1400)}
 
-  document.getElementById("copyMdBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(gather());toast("Copied markdown");stamp()}catch(e){toast("Copy failed")}});
+  // Clipboard with sandbox fallback.
+  // navigator.clipboard is unavailable in a sandboxed iframe and on some file:// origins
+  // and on some file:// origins — it is undefined or rejects, and every copy button dies with
+  // "Copy failed". Fall back to a hidden textarea + execCommand("copy"), which still works
+  // inside a user-gesture handler in those contexts.
+  // Origin: 2026-07-30 — a report opened in a sandboxed mirror and every copy button failed.
+  async function copyText(text){
+    try{
+      if(navigator.clipboard && window.isSecureContext){
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    }catch(e){/* fall through to legacy path */}
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=text;
+      ta.setAttribute("readonly","");
+      ta.style.cssText="position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:none;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    }catch(e){return false}
+  }
+
+  document.getElementById("copyMdBtn").addEventListener("click",async()=>{if(await copyText(gather())){toast("Copied markdown");stamp()}else{toast("Copy failed")}});
   document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});
-  document.getElementById("claudeBtn").addEventListener("click",async()=>{const md=gather();const escaped=md.replace(/'/g, "'\\''");const cmd="claude -p '"+escaped+"'";try{await navigator.clipboard.writeText(cmd);toast("Copied as Claude prompt");stamp()}catch(e){toast("Copy failed")}});
+  document.getElementById("claudeBtn").addEventListener("click",async()=>{const md=gather();const escaped=md.replace(/'/g, "'\\''");const cmd="claude -p '"+escaped+"'";if(await copyText(cmd)){toast("Copied as Claude prompt");stamp()}else{toast("Copy failed")}});
 
   // Per-block code copy icons — wrap every <pre>, add a small copy button top-right
   document.querySelectorAll("pre").forEach(pre=>{
@@ -364,18 +482,35 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     btn.textContent="copy";
     btn.title="Copy code block";
     btn.addEventListener("click",async()=>{
-      try{
-        await navigator.clipboard.writeText(pre.textContent);
+      if(await copyText(pre.textContent)){
         btn.textContent="copied";
         btn.classList.add("copied");
         setTimeout(()=>{btn.textContent="copy";btn.classList.remove("copied")}, 1200);
-      }catch(e){
+      } else {
         btn.textContent="failed";
         setTimeout(()=>{btn.textContent="copy"}, 1200);
       }
     });
     wrap.appendChild(btn);
   });
+
+  // Floating notes (v2.2.0): mirror of the open-notes textarea, same localStorage slot.
+  (function(){try{
+    var panel=document.getElementById('floatNotes'); if(!panel) return;
+    var fta=document.getElementById('floatNotesTa');
+    var src=document.querySelector('textarea[data-q^="open-notes"]'); if(!src){var _all=document.querySelectorAll('textarea.note'); src=_all.length?_all[_all.length-1]:null;}
+    if(!src){panel.hidden=true;return;}
+    var syncing=false;
+    function push(from,to){if(syncing)return;syncing=true;to.value=from.value;to.dispatchEvent(new Event('input',{bubbles:true}));syncing=false;}
+    fta.value=src.value;
+    fta.addEventListener('input',function(){push(fta,src)});
+    src.addEventListener('input',function(){if(!syncing)fta.value=src.value});
+    var k='fieldreport.floatNotes.collapsed';
+    try{if(localStorage.getItem(k)==='1')panel.classList.add('collapsed')}catch(e){}
+    panel.querySelector('.fn-head').addEventListener('click',function(){panel.classList.toggle('collapsed');try{localStorage.setItem(k,panel.classList.contains('collapsed')?'1':'0')}catch(e){}});
+    // re-sync after the template's own restore-from-localStorage runs
+    setTimeout(function(){fta.value=src.value},50);
+  }catch(e){}})();
 })();
 </script>
 </body>

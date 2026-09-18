@@ -1,8 +1,8 @@
 # Field Report UI Feature Inventory
 
-Last updated: 2026-05-17 · Audited from 13 field reports over 48 hours
+Last updated: 2026-09-17 · Originally audited from 13 field reports over 48 hours (2026-05-17)
 
-## Patterns (15 baseline + 2 optional + 3 foundational)
+## Patterns (16 baseline + 2 optional + 3 foundational)
 
 ### 1. Section Checkboxes (Top-Right)
 **Status:** Canonical
@@ -73,6 +73,11 @@ Last updated: 2026-05-17 · Audited from 13 field reports over 48 hours
 **What it does:** Header row shows three timestamps: `Compiled` (original generation, static), `Patched` (last write, static, updated on edit), `Opened` (live, rendered by JS on each page load via `<span id="openedAt">`). Solves the "I closed the tab because it looked stale" problem — the Opened timestamp always reads current.
 **Notes:** Mandatory going forward. A single timestamp misleads when a report is generated once and viewed later.
 
+### 16. Floating Notes Panel
+**Status:** Canonical (added 2026-09-07, template v2.2.0)
+**What it does:** A small fixed panel (`#floatNotes`) anchored bottom-right that follows the reader down the page. Contains a header (click to collapse/expand, state persisted to localStorage) and a textarea mirroring the report's open-notes textarea — typing in either updates the other in real time, and both persist through the same localStorage slot the existing save/restore path already uses (the mirror textarea has no `data-q` on purpose; it pushes into the real textarea and dispatches `input` so the existing save path fires).
+**Origin:** user request, 2026-09-07: "is there a way to have the open notes section as a floating section that follows me the whole way down?"
+
 ## Optional patterns (synthesis-heavy reports)
 
 ### O1. Five-Lens Panel (Parallel Reframes)
@@ -88,7 +93,7 @@ Last updated: 2026-05-17 · Audited from 13 field reports over 48 hours
 The button bar's collapse-to-dots / expand-on-hover behavior is part of feature 7. Counts as a single feature with the export buttons, not a separate baseline number.
 
 ## Feature Count
-- **Baseline (every report):** 15 numbered patterns
+- **Baseline (every report):** 16 numbered patterns
 - **Optional (synthesis-heavy reports):** 2 patterns (five-lens panel, synthesis block)
 - **Foundational (color scheme, fonts, spacing — not numbered above):** 3
 
@@ -101,3 +106,30 @@ The button bar's collapse-to-dots / expand-on-hover behavior is part of feature 
 5. Session-ID embedded in three places (multi-session continuity)
 6. localStorage persistence (no server dependency)
 7. Portable template (no hardcoded user paths in the template body)
+
+## Clipboard sandbox fallback (v2.1.3, 2026-07-30)
+
+**Status:** baseline — folded into feature 7 (copy buttons) and feature 8 (per-block code copy). Not a new number.
+
+**What it does:** all three export buttons and every code-block copy icon route through a shared
+`copyText(text)` helper instead of calling `navigator.clipboard.writeText` directly. The helper
+tries `navigator.clipboard` only when `window.isSecureContext` is true, and otherwise falls back
+to a hidden `<textarea>` + `document.execCommand("copy")`, which still succeeds inside a
+user-gesture handler in restricted contexts.
+
+**Why it exists:** reports were briefly mirrored as hosted Artifacts (2026-07-06 to
+2026-08-02). That mirror runs in a **sandboxed iframe** where `navigator.clipboard` is
+unavailable and localStorage is partitioned. Result: on the mirror, all copy buttons failed
+with "Copy failed", the POSTED stamp never fired, and checkbox/textarea state did not persist.
+The same failure hits some `file://` origins.
+
+**Origin:** 2026-07-30. The user worked in the mirror copy — because that was the copy open in
+front of them — and every button died. Two rounds of debugging were spent on the local file,
+which was never the broken one.
+
+**Standing lesson for the agent:** the local file is the only operable copy. Mirrors were
+dropped on 2026-08-02 (see SKILL.md step 4b). State never syncs between origins.
+
+**Residual limitation:** the fallback fixes copy. It does NOT fix localStorage persistence in a
+sandboxed frame — checkboxes and notes will not survive a reload there. The fallback stays
+because `file://` origins hit the same clipboard restriction.

@@ -20,7 +20,7 @@ If you have ever answered five agent questions in chat and watched it confuse yo
 
 ## What's in the box
 
-Every report the skill produces comes from one canonical template (`references/canonical-template.html`). Copying that template inherits **15 baseline features plus 2 optional patterns** wired correctly — no per-report re-implementation, no drift between reports.
+Every report the skill produces comes from one canonical template (`references/canonical-template.html`). Copying that template inherits **16 baseline features plus 2 optional patterns** wired correctly — no per-report re-implementation, no drift between reports.
 
 **Interactive input (the core pattern):**
 - A textarea after every question, answered in place
@@ -144,10 +144,6 @@ The pattern uses four CSS variables: `--bg`, `--ink`, `--accent`, `--toast`. Def
 
 Each `<textarea class="note" data-q="LABEL">` registers that section's input. The export script walks every non-empty textarea, uses `data-q` as the section label or JSON key, and emits one of three formats. The buttons are wired with `addEventListener` — no framework, no build step. Checkbox state, toggle state, and textarea contents are written to `localStorage` keyed by file slug, and rehydrated on every page load.
 
-## Related tools
-
-- [checkpoint](https://github.com/cogpros/checkpoint), the display half to this skill's input half. Field-report captures your answers into the agent, checkpoint renders session state back out.
-
 ## License
 
 MIT. See `LICENSE.txt`.
@@ -155,3 +151,7 @@ MIT. See `LICENSE.txt`.
 ## Background
 
 Read `DESIGN.md` for the full why. Short version: I kept getting walls of HTML decisions from Claude, answering them by hand in chat, and losing structure. The pattern was extracted from reports I had been hand-building, then enforced as a skill so I (and my agents) stopped forgetting parts of it.
+
+## Related tools
+
+- [checkpoint](https://github.com/cogpros/checkpoint), the display half to this skill's input half. Field-report captures your answers into the agent, checkpoint renders session state back out.
