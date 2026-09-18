@@ -140,7 +140,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
 16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
-17. **Agent wire (POST + presence)** — `#postBtn` and the `Agent` cell in the meta row. Reads `window.lavish`: listening → POST queues one prompt (full export + changed-sections header) for lavish's Send to Agent; nobody listening → POST copies the same batch with an attach instruction. See *Closing the loop* below.
+17. **Agent wire (POST + presence)** — `#postBtn` and the `Agent` cell in the meta row. Reads `window.lavish`: listening → POST queues one prompt (full export + changed-sections header) for lavish's Send to Agent; nobody listening → POST copies the same batch with an attach instruction and the three export buttons return. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
 
@@ -181,7 +181,7 @@ Each section in the report follows this shape:
 
 A report has two states and the page reads which one it is in; the user never picks.
 
-- **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`. POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
+- **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
 - **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi <path>` and `poll`, and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
 
 **Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-poll (`lavish-axi poll <file> --agent-reply "<one-line receipt>"`).
