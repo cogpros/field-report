@@ -490,7 +490,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
         "Act on the answers below. Reply with one line per section id: done (with evidence), deferred (why), or rejected (why). Account for every id before reporting completion.","",gather()];
       return lines.join("\n");
     },
-    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi ${b.path}`,`  npx -y lavish-axi poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
+    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.76 ${b.path}`,`  npx -y lavish-axi@0.1.76 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
     async post(){
       const b=this.batch();

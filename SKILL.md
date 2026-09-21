@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.3.0
+version: 2.3.1
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.3.0
+# Skill: field-report v2.3.1
 
 ## Purpose
 
@@ -63,10 +63,14 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
 3. Save. Open it so an agent can listen (v2.3.0). If lavish-axi is available,
    serve the file through it and start the poll; otherwise open the file
    directly. Never steal focus (`open -g` on macOS).
-   # with lavish-axi (recommended): one session per file, agent long-polls
-   npx -y lavish-axi "${REPORTS_DIR}/<your-report-slug>.html" --no-open
+   # with lavish-axi (recommended): one session per file, agent long-polls.
+   # PIN THE VERSION and use the same pin everywhere on the machine: a client of a
+   # different version makes the shared server restart "for upgrade", which kills
+   # every poll any agent has running. (Observed 3x in one weekend with one seat
+   # unpinned.) 0.1.76 is the version this skill was tested against (bumped from 0.1.71 on 2026-09-21; README diff read, window.lavish surface identical).
+   npx -y lavish-axi@0.1.76 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
    open -g "<session url printed above>"
-   npx -y lavish-axi poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
+   npx -y lavish-axi@0.1.76 poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
    # without lavish-axi
    # macOS: open -g  |  Linux: xdg-open  |  Windows: start
    open -g "${REPORTS_DIR}/<your-report-slug>.html"
@@ -182,13 +186,13 @@ Each section in the report follows this shape:
 A report has two states and the page reads which one it is in; the user never picks.
 
 - **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
-- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi <path>` and `poll`, and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
+- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.76 <path>` and `poll` (same pin as the rest of the machine), and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
 
 **Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-poll (`lavish-axi poll <file> --agent-reply "<one-line receipt>"`).
 
 **End.** The user's **Send & End** or **End session** returns `ended` from the poll: stop polling, deliver anything left in chat, do not reopen uninvited. `browser_disconnected` means the tab closed: ask before reopening or ending.
 
-**lavish settings worth fixing once, in the seat that launches your agent:** `LAVISH_AXI_TELEMETRY=0` (lavish reports command names, version and platform to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server resident so a half-filled report's link never goes dead). Pin the version you tested against, and read lavish's CHANGELOG.md and VISION.md before bumping.
+**lavish settings worth fixing once, in the seat that launches your agent:** `LAVISH_AXI_TELEMETRY=0` (lavish reports command names, version and platform to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server resident so a half-filled report's link never goes dead). Pin the version you tested against, use ONE pin per machine (a mixed-version client forces a server restart that kills every running poll), and read lavish's release notes and VISION.md before bumping.
 
 ## Pre-save checklist
 
