@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.3.1
+version: 2.4.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.3.1
+# Skill: field-report v2.4.0
 
 ## Purpose
 
@@ -144,7 +144,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
 16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
-17. **Agent wire (POST + presence)** — `#postBtn` and the `Agent` cell in the meta row. Reads `window.lavish`: listening → POST queues one prompt (full export + changed-sections header) for lavish's Send to Agent; nobody listening → POST copies the same batch with an attach instruction and the three export buttons return. See *Closing the loop* below.
+17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` and the `Agent` cell in the meta row. Every POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours. Then it reads `window.lavish`: listening → the same batch is queued as one prompt for lavish's Send to Agent; nobody listening → the batch is copied with an attach instruction. The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
 
@@ -181,12 +181,14 @@ Each section in the report follows this shape:
 - `data-q` on toggles and textareas: short, lowercase, hyphenated. Becomes the heading in exported markdown.
 - Placeholder text on textareas is the agent's recommendation written so the user can accept it on Tab or rewrite freely. Pre-fill choices the user can reshape.
 
-## Closing the loop (v2.3.0)
+## Closing the loop (v2.3.0, receipt first since v2.4.0)
 
 A report has two states and the page reads which one it is in; the user never picks.
 
 - **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
 - **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.76 <path>` and `poll` (same pin as the rest of the machine), and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
+
+**Receipt before relay (v2.4.0, 2026-10-08).** The page writes its own receipt. POST downloads `<slug>-answers.md` into the browser's Downloads folder before anything is relayed. On this box a launchd watcher (`com.hugr.field-report-receipts`, script `~/1HUGR/code/scripts/field-report-receipts.sh`) moves that file beside the report in the reports directory, flips the delivery log to `answered` via `fr-log.sh`, emits `field_report_answered`, and regenerates the vault note `~/1HUGR/docs/field-reports.md` (OPEN and ANSWERED tables, one row per report). A page served from any http origin next to its receipt shows an ANSWERED stamp under the title on load (`wire.answeredStamp`). Why: for three weeks every report looked open because answers lived only in localStorage and the marker was in a second party's custody; fifty deliveries, two marked answered. The receipt is the operator's Sent folder.
 
 **Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-poll (`lavish-axi poll <file> --agent-reply "<one-line receipt>"`).
 

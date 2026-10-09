@@ -492,17 +492,44 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     },
     instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.76 ${b.path}`,`  npx -y lavish-axi@0.1.76 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
+    // Receipt before relay (2026-10-08): POST first writes the answers to disk as a
+    // download named <slug>-answers.md, the marker every scanner already honours.
+    // Only then does it hand a copy to whoever is listening. The record of the
+    // operator's act never depends on an agent remembering to write it.
+    receipt(b){
+      const stampLine=`<!-- field-report receipt · slug=${b.slug} · answered=${b.items.filter(i=>i.answered).length}/${b.items.length} · posted=${new Date().toISOString()} -->`;
+      const md=stampLine+"\n"+gather();
+      const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
+      const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+"-answers.md";
+      document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);
+    },
     async post(){
       const b=this.batch();
+      try{this.receipt(b)}catch(e){toast("Receipt download failed; answers still in this page")}
       if(this.live()){
         window.lavish.queuePrompt(this.prompt(b),{tag:"field-report",text:`POST ${b.slug} · ${b.changed.length} changed`,queueKey:"field-report:"+b.slug,data:{slug:b.slug,session:b.session,path:b.path,changed:b.changed,items:b.items.map(i=>({id:i.id,changed:i.changed,answered:i.answered}))}});
-        this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return;
+        this.remember(b);toast("Receipt saved · queued for the agent · press Send to Agent");stamp();return;
       }
-      if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Nobody listening · copied with attach instructions");stamp()}else{toast("Copy failed")}
+      if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Receipt saved to Downloads · copied with attach instructions");stamp()}else{toast("Receipt saved to Downloads · copy failed")}
+    },
+    // ANSWERED stamp: when the page is served next to its own receipt (any static
+    // server), show it across the top. file:// pages skip this quietly.
+    async answeredStamp(){
+      if(location.protocol!=="http:"&&location.protocol!=="https:")return;
+      try{
+        const r=await fetch(fileSlug+"-answers.md",{method:"GET",cache:"no-store"});
+        if(!r.ok)return;
+        const txt=await r.text();const m=txt.match(/posted=([^ >]+)/);const when=m?m[1].slice(0,16).replace("T"," "):"";
+        const h1=document.querySelector("h1");if(!h1)return;
+        const tag=document.createElement("div");tag.id="answeredStamp";
+        tag.style.cssText="margin:6px 0 10px;padding:10px 14px;border:3px solid var(--green,#3f8a4a);border-radius:10px;font:800 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--green,#3f8a4a)";
+        tag.textContent="ANSWERED"+(when?" · receipt "+when+" UTC":"")+" · "+fileSlug+"-answers.md";
+        h1.insertAdjacentElement("afterend",tag);
+      }catch(e){}
     },
     presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (then press Send to Agent)":"POST answers: nobody listening, copies the batch with attach instructions"}
   };
-  wire.presence();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
+  wire.presence();wire.answeredStamp();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
   document.getElementById("postBtn").addEventListener("click",()=>wire.post());
   document.getElementById("copyMdBtn").addEventListener("click",async()=>{if(await copyText(gather())){toast("Copied markdown");stamp()}else{toast("Copy failed")}});
   document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});

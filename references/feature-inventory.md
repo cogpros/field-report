@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports over 48 hours (2026-05-17)
 
-## Patterns (17 baseline + 2 optional + 3 foundational)
+## Patterns (18 baseline + 2 optional + 3 foundational)
 
 ### 1. Section Checkboxes (Top-Right)
 **Status:** Canonical
@@ -141,3 +141,7 @@ dropped on 2026-08-02 (see SKILL.md step 4b). State never syncs between origins.
 **Residual limitation:** the fallback fixes copy. It does NOT fix localStorage persistence in a
 sandboxed frame — checkboxes and notes will not survive a reload there. The fallback stays
 because `file://` origins hit the same clipboard restriction.
+
+### 18. Receipt before relay + ANSWERED stamp (v2.4.0)
+
+POST downloads `<slug>-answers.md` (receipt header line + full export) before relaying to lavish or the clipboard. On load from an http origin the page fetches its own `<slug>-answers.md`; if present, an ANSWERED stamp with the receipt time is inserted under the `<h1>`. file:// pages skip the stamp quietly. Added 2026-10-08 after the operator found that POST had never left a mark on disk.
