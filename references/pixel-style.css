@@ -1,0 +1,140 @@
+/* Optional visual layer for a copied canonical Field Report.
+   Replace __SILKSCREEN_FONT_BASE64__ before inserting into the HTML. */
+@font-face {
+  font-family: "Field Report Silkscreen";
+  src: url("data:font/ttf;base64,__SILKSCREEN_FONT_BASE64__") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --bg: #101827;
+  --ink: #f4e8c1;
+  --brown: #bbcbcb;
+  --pink: #ffa39a;
+  --green: #b8e086;
+  --amber: #ffd27a;
+  --card: #18283a;
+  --rule: #6a8592;
+  --soft: #18283a;
+  --code-bg: #0d1725;
+  --lede-bg: #18283a;
+  --textarea-bg: #0d1725;
+  --textarea-focus: #18283a;
+  --done-bg: #162b2a;
+  --dim: #bbcbcb;
+  --stamp: #ffa39a;
+  --row: #42596a;
+}
+
+body.light {
+  --bg: #f7f1e3;
+  --ink: #221a14;
+  --brown: #574932;
+  --pink: #a53055;
+  --green: #356f3d;
+  --amber: #805814;
+  --card: #fffdf9;
+  --rule: #a8987d;
+  --soft: #fff8e8;
+  --code-bg: #f0e6cf;
+  --lede-bg: #fffaf0;
+  --textarea-bg: #fffdf9;
+  --textarea-focus: #ffffff;
+  --done-bg: #eef5e9;
+  --dim: #574932;
+  --stamp: #a8421f;
+  --row: #d4c7a8;
+}
+
+body {
+  max-width: 1180px;
+  font-family: system-ui, sans-serif;
+}
+
+h1,
+section.s h2,
+.stat .n,
+.pixel-label,
+.pixel-screen h3 {
+  font-family: "Field Report Silkscreen", ui-monospace, monospace;
+  font-weight: 400;
+}
+
+h1 {
+  font-size: clamp(22px, 3vw, 39px);
+  line-height: 1.25;
+  border-bottom: 4px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+section.s {
+  border-radius: 0;
+  border-top: 3px solid var(--rule);
+  padding: 12px 16px 18px;
+}
+
+section.s h2 {
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.35;
+}
+
+section.s.done h2 { text-decoration: none; }
+
+.stat,
+.lede,
+.card,
+textarea.note,
+.pixel-screen,
+.pixel-card { border-radius: 0; }
+
+.stat {
+  border: 2px solid var(--rule);
+  box-shadow: 4px 4px 0 #060e19;
+}
+
+body.light .stat { box-shadow: 4px 4px 0 #d4c7a8; }
+.lede { border-left-color: var(--green); }
+
+.pixel-screen {
+  width: 100%;
+  max-width: 430px;
+  min-width: 0;
+  padding: 16px;
+  border: 4px solid var(--ink);
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: 8px 8px 0 #060e19;
+}
+
+body.light .pixel-screen { box-shadow: 8px 8px 0 #d4c7a8; }
+
+.pixel-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.pixel-card {
+  min-width: 0;
+  padding: 10px;
+  border: 2px solid var(--rule);
+  background: var(--card);
+}
+
+.pixel-card img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.pixel-card strong,
+.pixel-card small { display: block; overflow-wrap: anywhere; }
+.pixel-card small { color: var(--dim); }
+
+@media (max-width: 760px) {
+  body { padding-left: 12px; padding-right: 12px; }
+  .pixel-screen { padding: 10px; }
+}

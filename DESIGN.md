@@ -63,9 +63,17 @@ The first version of this skill hardcoded the save path to my own dashboard dire
 
 The agent does not pick a default. Picking a default that doesn't match the user's setup is worse than asking once.
 
-### No palette
+### Default palette and optional pixel style
 
-The pattern uses four CSS variables (`--bg`, `--ink`, `--accent`, `--toast`). It doesn't ship a palette. Reports that use this pattern come in every color scheme — the pattern is the structure, not the look.
+The base pattern uses CSS variables and does not require a particular palette.
+Reports that use it can have different color schemes — the interaction pattern
+is the structure, not the look.
+
+The opt-in Pixel Field Report adds a reusable garden-console palette and
+Silkscreen headings to a copied canonical report. It does not change the
+interaction template or make that palette the default. A report previewing a
+specific pixel-style app should take its colors and screen layout from that
+app; the bundled CSS is a starting point.
 
 ## When NOT to use this skill
 

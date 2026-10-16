@@ -7,10 +7,11 @@ description: >
   Manually invoked when the user asks for a "field report" or says "use
   field-report for this". Generates an interactive HTML report (textareas after
   every question, three export buttons, light/dark, localStorage) from a
-  canonical template — 17 baseline features + 2 optional patterns. Do NOT
+  canonical template — 17 baseline features + 2 optional patterns, with an
+  opt-in pixel style for visual reviews. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.4.0
+version: 2.5.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +21,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.4.0
+# Skill: field-report v2.5.0
 
 ## Purpose
 
@@ -100,6 +101,22 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
 The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 17 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
 
 **When to deviate:** the user may explicitly request a one-off shape (a read-only HTML, no textareas, for example). That is a different artifact — note it explicitly and ship the simpler file without this skill's enforcement.
+
+## Pixel Field Report (opt-in visual style)
+
+When the user asks for a pixel Field Report, or the report reviews an existing
+pixel-style interface, read [the pixel style guide](references/pixel-field-report.md).
+Start with the same canonical template and apply the guide's CSS and bundled
+Silkscreen font to the **report copy**, after the template's styles. This is a
+visual variant, not a second template: keep all section IDs, input controls,
+localStorage behavior, exports, POST, receipts, and agent presence intact.
+
+Use the subject app's actual layout, palette, and art when the report previews
+that app. Mark snapshots and proposed UI plainly. Put plant or object names in
+text beside pixel images so the image is not the only way to identify them.
+Verify the report at desktop and phone widths, including decoded images, notes,
+keyboard focus, and no horizontal overflow. A pixel font should make headings
+and short labels recognizable without making long feedback text hard to read.
 
 ## Placeholders to replace
 
@@ -237,6 +254,8 @@ When the user names a new feature or a bug is fixed:
 - `references/example.html` — AI-agent-decision worked example (self-referential: agent asks the developer which skills to install before scaffolding).
 - `references/example-legacy-database.html` — earlier worked example (v2.0 pattern, "choose a database"). Kept for the textarea + export pattern at minimum surface area.
 - `references/interactive-pattern-snippet.html` — paste-ready snippet (legacy v1 — kept for reference).
+- `references/pixel-field-report.md` and `references/pixel-style.css` — optional pixel visual variant; read only for an explicitly requested pixel report or a pixel-style app review.
+- `assets/Silkscreen-Regular.ttf` and `assets/Silkscreen-OFL.txt` — font and its license for the optional pixel variant.
 
 **Required tools:**
 - `cp` (file copy)
@@ -290,7 +309,7 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 ## Roadmap
 
 - **v2.4** — Adopter-facing scorecard + README walkthroughs of the 17 features.
-- **v2.5** — Skill-doctor 14-Q pass to lock health ≥ 11/14.
+- **v2.6** — Skill-doctor 14-Q pass to lock health ≥ 11/14.
 - Dropped: File System Access sidecar (lavish is the wire; a disk sidecar would fork the answer store).
 
 ## Origin

@@ -107,6 +107,16 @@ open references/example.html
 
 For the canonical template (the one the skill copies into every new report), see `references/canonical-template.html`. An earlier worked example (choosing a database for a hypothetical project, v2.0 pattern) is kept at `references/example-legacy-database.html`.
 
+### Pixel Field Report
+
+If you ask for a **pixel Field Report**, the skill can style a copy of the
+canonical template with square cards, a dark garden-console palette, pixel
+images, and Silkscreen headings. Its note fields, checkboxes, POST flow, and
+receipts still work the usual way. The optional instructions and CSS are in
+[`references/pixel-field-report.md`](references/pixel-field-report.md); the
+Silkscreen font and its license are bundled under `assets/`. Reports about a
+particular app should use that app's real palette and layout.
+
 ## Bring your own dashboard
 
 The skill saves reports to a directory you configure. It does NOT ship a dashboard or auto-index — that is intentional. How you surface and browse those reports depends on your setup.

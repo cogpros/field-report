@@ -1,6 +1,6 @@
 # Field Report UI Feature Inventory
 
-Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports over 48 hours (2026-05-17)
+Last updated: 2026-10-16 (v2.5.0) · Originally audited from 13 field reports over 48 hours (2026-05-17)
 
 ## Patterns (18 baseline + 2 optional + 3 foundational)
 
@@ -87,6 +87,11 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 **Transport:** lavish-axi (github.com/kunchenguid/lavish-axi). Field-report ships no server. lavish stays optional: without it the page behaves exactly as v2.2.0 plus the attach instruction.
 
 ## Optional patterns (synthesis-heavy reports)
+
+The optional Pixel Field Report is a visual layer, not an interaction pattern
+and not part of the baseline count. See `pixel-field-report.md` and
+`pixel-style.css`. It retains all canonical controls and changes only the
+report copy's palette, typography, borders, and pixel-art presentation.
 
 ### O1. Five-Lens Panel (Parallel Reframes)
 **Status:** Optional
