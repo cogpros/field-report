@@ -115,8 +115,9 @@ Use the subject app's actual layout, palette, and art when the report previews
 that app. Mark snapshots and proposed UI plainly. Put plant or object names in
 text beside pixel images so the image is not the only way to identify them.
 Verify the report at desktop and phone widths, including decoded images, notes,
-keyboard focus, and no horizontal overflow. A pixel font should make headings
-and short labels recognizable without making long feedback text hard to read.
+keyboard focus, and no horizontal overflow. For this variant, Silkscreen must
+cover every visible line, including body text, notes, and controls. Keep it
+readable with appropriate size and line height.
 
 ## Placeholders to replace
 

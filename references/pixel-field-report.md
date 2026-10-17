@@ -40,8 +40,9 @@ Patched timestamp and changelog instead of inserting the CSS again.
 
 ## Review surface
 
-- Use Silkscreen for short headings, numbers, and labels. Keep long paragraphs
-  and answer text in a clear reading font.
+- Use Silkscreen across the entire report, including paragraphs, buttons,
+  notes, and POST controls. Keep body text readable with adequate size and
+  line height; the pixel variant is one visual language throughout.
 - Use `.pixel-screen` for a framed phone or app preview, `.pixel-gallery` for
   an image collection, and `.pixel-card` for each labeled item. The supplied
   CSS uses `image-rendering: pixelated` only on the visual assets.

@@ -1,5 +1,5 @@
 /* Optional visual layer for a copied canonical Field Report.
-   Replace __SILKSCREEN_FONT_BASE64__ before inserting into the HTML. */
+   Embed the bundled Silkscreen font before inserting into the HTML. */
 @font-face {
   font-family: "Field Report Silkscreen";
   src: url("data:font/ttf;base64,__SILKSCREEN_FONT_BASE64__") format("truetype");
@@ -48,17 +48,23 @@ body.light {
 
 body {
   max-width: 1180px;
-  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
-h1,
-section.s h2,
-.stat .n,
-.pixel-label,
-.pixel-screen h3 {
-  font-family: "Field Report Silkscreen", ui-monospace, monospace;
-  font-weight: 400;
+/* The canonical template sets fonts on individual controls and text blocks.
+   Cover those too so the pixel variant stays one visual language. */
+body,
+body *,
+body *::before,
+body *::after {
+  font-family: "Field Report Silkscreen", ui-monospace, monospace !important;
 }
+
+body,
+body *,
+body *::before,
+body *::after { border-radius: 0 !important; }
 
 h1 {
   font-size: clamp(22px, 3vw, 39px);
@@ -133,6 +139,24 @@ body.light .pixel-screen { box-shadow: 8px 8px 0 #d4c7a8; }
 .pixel-card strong,
 .pixel-card small { display: block; overflow-wrap: anywhere; }
 .pixel-card small { color: var(--dim); }
+
+body p,
+body small,
+body a,
+body label,
+body button,
+body input,
+body textarea { overflow-wrap: anywhere; }
+
+body button,
+body input,
+body textarea,
+body select { border-radius: 0; }
+
+body textarea.note {
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 @media (max-width: 760px) {
   body { padding-left: 12px; padding-right: 12px; }

@@ -111,7 +111,7 @@ For the canonical template (the one the skill copies into every new report), see
 
 If you ask for a **pixel Field Report**, the skill can style a copy of the
 canonical template with square cards, a dark garden-console palette, pixel
-images, and Silkscreen headings. Its note fields, checkboxes, POST flow, and
+images, and Silkscreen throughout. Its note fields, checkboxes, POST flow, and
 receipts still work the usual way. The optional instructions and CSS are in
 [`references/pixel-field-report.md`](references/pixel-field-report.md); the
 Silkscreen font and its license are bundled under `assets/`. Reports about a

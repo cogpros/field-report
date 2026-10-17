@@ -70,7 +70,7 @@ Reports that use it can have different color schemes — the interaction pattern
 is the structure, not the look.
 
 The opt-in Pixel Field Report adds a reusable garden-console palette and
-Silkscreen headings to a copied canonical report. It does not change the
+Silkscreen throughout a copied canonical report. It does not change the
 interaction template or make that palette the default. A report previewing a
 specific pixel-style app should take its colors and screen layout from that
 app; the bundled CSS is a starting point.
