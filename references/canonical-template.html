@@ -1,9 +1,12 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
+<!-- field-report-template v3.0.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="field-report-version" content="3.0.0">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#15110c;--ink:#ece2cc;--brown:#d2a86a;--pink:#e88aa3;--green:#67b378;--amber:#d9a64a;
@@ -171,6 +174,45 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 #floatNotes.collapsed textarea{display:none}
 @media (max-width:700px){#floatNotes{bottom:120px}}
 @media print{#floatNotes{display:none}}
+/* ===== PIXEL SKIN (fit) ===== */
+:root{--px-a:#7cf7a0;--px-b:#ff5fd2;--px-c:#5fd0ff;--px-d:#ffd23f;--px-e:#ff7a52}
+body{font-family:"VT323",ui-monospace,Menlo,monospace;font-size:21px;line-height:1.25;
+  background-image:linear-gradient(rgba(255,255,255,.025) 50%,transparent 50%);background-size:100% 4px}
+h1,section.s h2,h3,h4,.sub,.stat .n,.stat .l,th,.toggle,.bar button,.mode-toggle,.check span,.badge{font-family:"Press Start 2P",ui-monospace,monospace !important;letter-spacing:0}
+h1{font-size:22px;line-height:1.5;border-bottom:4px solid var(--ink);text-shadow:3px 3px 0 var(--px-b)}
+section.s h2{font-size:14px;line-height:1.6}
+h3{font-size:12px;line-height:1.6} h4{font-size:10px;line-height:1.6}
+.sub{font-size:10px;line-height:1.8}
+.stat .n{font-size:20px} .stat .l{font-size:8px;line-height:1.6}
+th{font-size:9px;line-height:1.6} td{font-family:"VT323",monospace;font-size:20px}
+.toggle{font-size:9px !important;line-height:1.5}
+.lede,.synthesis,.note-block,.warn,.action{font-family:"VT323",monospace;font-size:21px}
+*{border-radius:0 !important}
+.stat,section.s,.lens-card,.px-card,.toggle,textarea.note,pre,.lede{box-shadow:4px 4px 0 0 var(--rule)}
+section.s{border:3px solid var(--rule);border-top:3px solid var(--rule);background:var(--card);margin-top:28px}
+textarea.note{font-family:"VT323",monospace;font-size:20px}
+.px-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:10px 0}
+.px-card{border:3px solid var(--ink);padding:10px 12px;background:var(--soft)}
+.px-card .who{font-family:"Press Start 2P",monospace;font-size:11px;line-height:1.7;display:flex;gap:10px;align-items:center}
+.px-card .vendor{font-size:16px;color:var(--dim)}
+.sprite{width:40px;height:40px;flex:0 0 40px;image-rendering:pixelated}
+.c-eom{border-color:var(--px-e)} .c-euclid{border-color:var(--px-a)} .c-odin{border-color:var(--px-c)} .c-janus{border-color:var(--px-d)}
+.vote{display:inline-block;padding:0 6px;margin:1px 0;border:2px solid currentColor}
+.v-claude{color:var(--px-e)} .v-codex{color:var(--px-a)} .v-grok{color:var(--px-c)} .v-google{color:var(--px-d)} .v-agy{color:var(--px-b)}
+.agree{color:var(--green);font-family:"Press Start 2P",monospace;font-size:9px}
+.split{color:var(--warn);font-family:"Press Start 2P",monospace;font-size:9px}
+.hp{height:14px;border:3px solid var(--ink);background:var(--bg);position:relative;min-width:120px}
+.hp > i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--green) 0 8px,transparent 8px 10px)}
+.hp.low > i{background:repeating-linear-gradient(90deg,var(--warn) 0 8px,transparent 8px 10px)}
+.blink{animation:pxblink 1s steps(2) infinite} @keyframes pxblink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
+@media (max-width:700px){h1{font-size:15px} td{font-size:17px} table{display:block;overflow-x:auto}}
+
+/* ===== COMPONENT KIT (v3.0.0): optional building blocks, keep or delete per report ===== */
+ul.checklist{list-style:none;padding-left:0;margin:8px 0 4px}
+ul.checklist li{display:flex;gap:11px;align-items:flex-start;margin:7px 0;line-height:1.45}
+ul.checklist li input.icheck{margin:3px 0 0;width:19px;height:19px;flex:0 0 auto;cursor:pointer;accent-color:var(--green)}
+ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decoration-color:var(--dim)}
 </style>
 </head>
 <body data-session-id="{SESSION_ID_PLACEHOLDER}">
@@ -340,6 +382,12 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
     });
   })();
 
+  // Lavish Fix A (v3.0.0): Lavish's capture-phase click handler turns any non-control click into an annotation, which swallows link opens and synthetic download clicks. [data-lavish-action] marks them as controls.
+  document.querySelectorAll("a[href]").forEach(a=>{
+    if(!a.hasAttribute("data-lavish-action")) a.setAttribute("data-lavish-action","link");
+    if(!a.hasAttribute("target")){a.setAttribute("target","_blank");a.setAttribute("rel","noopener")}
+  });
+
   // Toggles
   document.querySelectorAll(".toggles").forEach(group=>{
     group.querySelectorAll(".toggle").forEach(t=>{
@@ -493,7 +541,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
         "Act on the answers below. Reply with one line per section id: done (with evidence), deferred (why), or rejected (why). Account for every id before reporting completion.","",gather()];
       return lines.join("\n");
     },
-    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.76 ${b.path}`,`  npx -y lavish-axi@0.1.76 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
+    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
     // Receipt before relay (2026-10-08): POST first writes the answers to disk as a
     // download named <slug>-answers.md, the marker every scanner already honours.
@@ -503,7 +551,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
       const stampLine=`<!-- field-report receipt · slug=${b.slug} · answered=${b.items.filter(i=>i.answered).length}/${b.items.length} · posted=${new Date().toISOString()} -->`;
       const md=stampLine+"\n"+gather();
       const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
-      const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+"-answers.md";
+      const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+"-answers.md";a.setAttribute("data-lavish-action","download");
       document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);
     },
     async post(){
@@ -535,7 +583,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   wire.presence();wire.answeredStamp();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
   document.getElementById("postBtn").addEventListener("click",()=>wire.post());
   document.getElementById("copyMdBtn").addEventListener("click",async()=>{if(await copyText(gather())){toast("Copied markdown");stamp()}else{toast("Copy failed")}});
-  document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});
+  document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";a.setAttribute("data-lavish-action","download");document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});
   document.getElementById("claudeBtn").addEventListener("click",async()=>{const md=gather();const escaped=md.replace(/'/g, "'\\''");const cmd="claude -p '"+escaped+"'"+wire.instruction(wire.batch());if(await copyText(cmd)){toast("Copied as Claude prompt");stamp()}else{toast("Copy failed")}});
 
   // Per-block code copy icons — wrap every <pre>, add a small copy button top-right
