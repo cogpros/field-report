@@ -541,7 +541,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         "Act on the answers below. Reply with one line per section id: done (with evidence), deferred (why), or rejected (why). Account for every id before reporting completion.","",gather()];
       return lines.join("\n");
     },
-    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.76 ${b.path}`,`  npx -y lavish-axi@0.1.76 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
+    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
     // Receipt before relay (2026-10-08): POST first writes the answers to disk as a
     // download named <slug>-answers.md, the marker every scanner already honours.

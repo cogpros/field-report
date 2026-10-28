@@ -44,6 +44,7 @@ The guard is `scripts/field-report-guard.sh`; install over `~/1HUGR/bin/field-re
 ## Pin
 
 ```
-$ grep -rn '0\.1\.76' . --exclude-dir=.git --exclude=PROOF.md | wc -l
-       2
+$ grep -rn 'lavish-axi@0\.1\.76' . --exclude-dir=.git | wc -l
+       0
 ```
+(One prose mention of 0.1.76 remains in SKILL.md as the 'bumped from' history note.)
