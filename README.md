@@ -36,7 +36,7 @@ Every report the skill produces comes from one canonical template (`references/c
 - Three timestamps in the header — Compiled (when generated), Patched (when last edited), Opened (live, set by JS on every page load). Solves the "I closed the tab because it looked stale" trap.
 
 **Export, surface, and polish:**
-- Three export buttons fixed bottom-right, collapsed to dots on load, expand on hover:
+- A **POST** button fixed bottom-right that reads POST and stays visible without hovering. The three export buttons beside it collapse to dots on load and expand on hover:
   - **Copy markdown** — your answers as a clean markdown doc, straight to clipboard
   - **Download .md** — save the markdown to a file
   - **Copy as Claude prompt** — wraps your answers in `claude -p '...'` for terminal paste
