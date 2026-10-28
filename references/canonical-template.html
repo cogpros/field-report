@@ -70,6 +70,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 .bar button{background:var(--ink);color:var(--bg);border:none;width:14px;height:14px;border-radius:50%;cursor:pointer;box-shadow:0 4px 14px #0008;overflow:hidden;white-space:nowrap;padding:0;font:0/0 ui-monospace;letter-spacing:0;transition:width .22s ease, height .22s ease, padding .22s ease, border-radius .22s ease, font-size .22s ease}
 .bar:hover button, .bar button:focus-visible{width:auto;height:auto;padding:11px 16px;border-radius:8px;font:700 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em}
 .bar button.pink{background:var(--pink);color:#000}
+.bar button#postBtn{width:auto;height:auto;padding:11px 16px;border-radius:8px;font:700 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.06em}
 .bar button.amber{background:var(--amber);color:#000}
 .bar button.brown{background:var(--brown);color:#000}
 .bar button.mode{background:var(--brown)}
@@ -293,7 +294,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 <!-- POSTED stamp (triggered on copy) -->
 <div id="postedStamp" class="posted-stamp"><span class="text">POSTED</span><span class="ts"></span></div>
 
-<!-- Fixed button bar: copy markdown, download .md, copy as Claude prompt (collapse/expand on hover) -->
+<!-- Fixed button bar: POST stays labeled; export buttons collapse/expand on hover -->
 <div class="bar">
   <button id="postBtn" class="pink" title="POST answers: to the listening agent when one is attached, else to the clipboard">POST</button>
   <button id="copyMdBtn" class="pink" title="Copy markdown">Copy markdown</button>
@@ -342,6 +343,8 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   // Toggles
   document.querySelectorAll(".toggles").forEach(group=>{
     group.querySelectorAll(".toggle").forEach(t=>{
+      // Lavish treats clicks on non-native elements as "annotate this"; this marks the custom toggle as a control (v2.4.1)
+      t.setAttribute("data-lavish-action","toggle");
       t.addEventListener("click",()=>{
         const single=!group.classList.contains("multi");
         if(single) group.querySelectorAll(".toggle").forEach(x=>x.classList.remove("active"));

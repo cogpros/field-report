@@ -35,7 +35,7 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 
 ### 7. Copy Buttons + Toast Feedback
 **Status:** Canonical
-**What it does:** Three export buttons fixed bottom-right. "Copy markdown" pink, "Download .md" brown, "Copy as Claude prompt" amber. Toast notification on success. Buttons collapse to dots on page load, expand on hover.
+**What it does:** Three export buttons fixed bottom-right. "Copy markdown" pink, "Download .md" brown, "Copy as Claude prompt" amber. Toast notification on success. Those export buttons collapse to dots on page load and expand on hover. The POST button stays the word POST at full size with no hover reveal (v2.4.1).
 
 ### 8. Per-Block Code Copy Icon
 **Status:** Canonical (added 2026-05-17, public-ship v2.1.1)
@@ -58,6 +58,7 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 ### 12. Toggle Groups (Go/Defer/Kill Color States)
 **Status:** Canonical
 **What it does:** `.toggles` containers with `.toggle` buttons. `go` = green, `defer` = amber, `kill` = red when active. Single-select by default; multi-select when the container has the `multi` class.
+**Notes (v2.4.1, 2026-10-27):** the init script stamps `data-lavish-action` on every `.toggle`. Without it, Lavish treats a click on a non-native element as "annotate this" and opens a comment box instead of selecting (operator report, devcon-models-2026-10-27). Reports built before v2.4.1 keep the bug under Lavish; checkboxes always worked because native inputs pass through.
 
 ### 13. Light/Dark Mode Toggle (Top-Right)
 **Status:** Canonical (added for public ship 2026-05-17)
@@ -83,7 +84,7 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 **Status:** Canonical (added 2026-09-17, template v2.3.0)
 **What it does:** A `POST` button (first in the button bar) and an `Agent` presence cell in the meta-status row. The page reads whether `window.lavish` exists, i.e. whether lavish-axi served it and an agent is polling. Listening: POST queues one prompt carrying the full markdown export plus a batch header (sections answered, sections changed since last POST) via `window.lavish.queuePrompt`, and the user presses lavish's Send to Agent. Nobody listening (file://, static server, tablet): POST copies the identical batch to the clipboard with an attach instruction (`npx -y lavish-axi@0.1.76 <path>` then `poll`; one pin per machine), so pasting it into any agent both delivers the answers and tells that agent how to start listening. "Copy as Claude prompt" carries the same instruction. Changed-since-last-POST is tracked per section in localStorage (`fr:lastpost:<slug>`).
 **Why:** NOW and LATER are a fact the page reads, never a mode the user picks. Origin: operator, 2026-09-17: "i want a choice about whether to run the now version or the later version… and the later version needs to have a copy command to put back into an agent to turn it into the now version."
-**Button bar while listening:** only POST is shown; Copy markdown, Download .md and Copy as Claude prompt are the LATER path and reappear when nobody is listening. Operator, 2026-09-17, via lavish: "remove all buttons but post if it works. the other buttons are only needed if a field report stays for later." The floating notes panel hides on the same condition.
+**Button bar while listening:** only POST is shown; Copy markdown, Download .md and Copy as Claude prompt are the LATER path and reappear when nobody is listening. POST reads POST and stays visible without hover (v2.4.1). Operator, 2026-09-17, via lavish: "remove all buttons but post if it works. the other buttons are only needed if a field report stays for later." The floating notes panel hides on the same condition.
 **Transport:** lavish-axi (github.com/kunchenguid/lavish-axi). Field-report ships no server. lavish stays optional: without it the page behaves exactly as v2.2.0 plus the attach instruction.
 
 ## Optional patterns (synthesis-heavy reports)

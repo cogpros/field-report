@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.4.0
+version: 2.4.1
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.4.0
+# Skill: field-report v2.4.1
 
 ## Purpose
 
@@ -134,7 +134,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 4. **Tier badges** (when sections are tiered — t0/t1/t2/t3)
 5. **Flow blocks** (when showing multi-step sequences — `.flow` element)
 6. **POSTED stamp animation** — slams in when Copy markdown / Download .md / Copy as Claude prompt fires
-7. **Copy buttons + toast** — bottom-right dots-on-hover bar
+7. **Copy buttons + toast** — bottom-right bar. Export buttons are dots until hover. `#postBtn` is always the word POST, full size, with no hover reveal.
 8. **Code-block copy icon** — every `<pre>` block gets a small copy button (top-right of the block)
 9. **Lede block** — pink left-border intro paragraph
 10. **Stat grid** — totals at top
@@ -144,7 +144,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
 16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
-17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` and the `Agent` cell in the meta row. Every POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours. Then it reads `window.lavish`: listening → the same batch is queued as one prompt for lavish's Send to Agent; nobody listening → the batch is copied with an attach instruction. The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
+17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` (labeled POST at rest since v2.4.1) and the `Agent` cell in the meta row. Every POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours. Then it reads `window.lavish`: listening → the same batch is queued as one prompt for lavish's Send to Agent; nobody listening → the batch is copied with an attach instruction. The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
 
@@ -295,4 +295,4 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 
 ## Origin
 
-The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode.
+The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode. v2.4.1 (2026-10-27) stamps `data-lavish-action="toggle"` on every `.toggle` so Lavish selects instead of annotating, and keeps the POST button labeled and visible without hover.
