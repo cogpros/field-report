@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 2.4.1
+version: 3.0.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v2.4.1
+# Skill: field-report v3.0.0
 
 ## Purpose
 
@@ -67,10 +67,10 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
    # PIN THE VERSION and use the same pin everywhere on the machine: a client of a
    # different version makes the shared server restart "for upgrade", which kills
    # every poll any agent has running. (Observed 3x in one weekend with one seat
-   # unpinned.) 0.1.76 is the version this skill was tested against (bumped from 0.1.71 on 2026-09-21; README diff read, window.lavish surface identical).
-   npx -y lavish-axi@0.1.76 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
+   # unpinned.) 0.1.80 is the version this skill was tested against (bumped from 0.1.76 on 2026-10-28 alongside the v3.0.0 design freeze; Lavish's capture-phase click handler skips `[data-lavish-action]`, which the template now stamps).
+   npx -y lavish-axi@0.1.80 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
    open -g "<session url printed above>"
-   npx -y lavish-axi@0.1.76 poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
+   npx -y lavish-axi@0.1.80 poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
    # without lavish-axi
    # macOS: open -g  |  Linux: xdg-open  |  Windows: start
    open -g "${REPORTS_DIR}/<your-report-slug>.html"
@@ -154,6 +154,25 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 
 The canonical template has every one of these wired correctly. Do not reimplement — copy from the template.
 
+## Design freeze and component kit (v3.0.0)
+
+The look is frozen. `references/canonical-template.html` carries the pixel skin (Press Start 2P headings, VT323 body, 3px square borders, 4px hard shadows, scanline body) and a declared version stamp: `<meta name="field-report-version" content="3.0.0">`. Do not restyle per report. The skin is the operator's call, made once on `firstmate-fit-2026-10-28`; changing it means a new template version, not a one-off edit.
+
+**Version stamp.** `scripts/field-report-guard.sh` reads the current version from the template and rejects any report in the reports dir that lacks the matching `field-report-version` meta. A report built from an older template fails the guard until it is re-rendered.
+
+**Modular sections.** The CSS ships these optional blocks. Use what a report needs; delete the rest.
+
+| Block | Markup | Use |
+|---|---|---|
+| `.hp` | `<div class="hp"><i style="width:70%"></i></div>`; add `.low` for warn color | pixel health/progress bar |
+| `.px-grid` + `.px-card` | `<div class="px-grid"><div class="px-card c-eom"><div class="who">NAME <span class="vendor">vendor</span></div>...</div></div>` | one card per agent/lens/option; `.c-eom .c-euclid .c-odin .c-janus` set the border color |
+| `.v-claude .v-codex .v-grok .v-google .v-agy` | `<span class="vote v-grok">GROK</span>` | vendor-colored vote chips |
+| `.agree` / `.split` | `<span class="agree">AGREE</span>` | convergence markers: green agree, warn split |
+| `.icheck` | `<ul class="checklist"><li><input type="checkbox" class="icheck" id="i-1"><span>item</span></li></ul>` | per-item checklist independent of the section-done machinery |
+| `.blink` | `<span class="blink">` | stepped blink; disabled under reduced motion |
+
+**Lavish stamps (Fix A).** Lavish's capture-phase click handler turns any click on a non-control element into an annotation box. The template stamps `data-lavish-action` on (1) the synthetic receipt anchor in `wire.receipt()`, (2) the synthetic download anchor behind `#downloadMdBtn`, and (3) every `a[href]` at init (also set to `target=_blank rel=noopener`). Do not remove these.
+
 ## Section pattern (use this every time)
 
 Each section in the report follows this shape:
@@ -186,7 +205,7 @@ Each section in the report follows this shape:
 A report has two states and the page reads which one it is in; the user never picks.
 
 - **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
-- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.76 <path>` and `poll` (same pin as the rest of the machine), and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
+- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.80 <path>` and `poll` (same pin as the rest of the machine), and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
 
 **Receipt before relay (v2.4.0, 2026-10-08).** The page writes its own receipt. POST downloads `<slug>-answers.md` into the browser's Downloads folder before anything is relayed. On this box a launchd watcher (`com.hugr.field-report-receipts`, script `~/1HUGR/code/scripts/field-report-receipts.sh`) moves that file beside the report in the reports directory, flips the delivery log to `answered` via `fr-log.sh`, emits `field_report_answered`, and regenerates the vault note `~/1HUGR/docs/field-reports.md` (OPEN and ANSWERED tables, one row per report). A page served from any http origin next to its receipt shows an ANSWERED stamp under the title on load (`wire.answeredStamp`). Why: for three weeks every report looked open because answers lived only in localStorage and the marker was in a second party's custody; fifty deliveries, two marked answered. The receipt is the operator's Sent folder.
 
@@ -226,7 +245,7 @@ When the user names a new feature or a bug is fixed:
 
 1. Patch the canonical template at `<skill-install-dir>/references/canonical-template.html`
 2. Add the pattern to `references/feature-inventory.md` (number the feature, status, where it appeared first, what it does)
-3. Bump skill version (2.1.0 → 2.1.1 for tweaks, 2.2.0 for new features, 3.0.0 for breaking changes)
+3. Bump skill version (2.1.0 → 2.1.1 for tweaks, 2.2.0 for new features, 3.0.0 for breaking changes). Bump the `field-report-version` meta in the template in the same commit; the guard keys off it.
 4. If the change is public-shipping-relevant, note it in the README
 
 ## Dependencies
