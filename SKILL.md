@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 3.1.0
+version: 3.1.1
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,11 +20,11 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v3.1.0
+# Skill: field-report v3.1.1
 
 ## Purpose
 
-Every field report comes out the same shape. The user opens a report and the surface is identical to the last one — checkboxes top-right, progress bar at top, Tab-to-fill on textareas, copy buttons bottom-right, light/dark toggle. Uniformity is the entire value. Hand-building from scratch is the failure mode this skill exists to prevent.
+Every field report comes out the same shape. The user opens a report and the surface is identical to the last one — done checkboxes at the bottom of each section, progress bar at top, Tab-to-fill on textareas, copy buttons bottom-right, light/dark toggle. Uniformity is the entire value. Hand-building from scratch is the failure mode this skill exists to prevent.
 
 ## Trigger conditions (manual invocation)
 
@@ -128,7 +128,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 
 **Baseline (every report):**
 
-1. **Section checkboxes (top-right)** — `<label class="check"><span>done</span><input type="checkbox" data-cb="..."></label>` inside each `<section class="s">`
+1. **Section checkboxes (bottom of each section)** — `<label class="check"><span>done</span><input type="checkbox" data-cb="..."></label>` as the LAST element inside each `<section class="s">` (after the textarea and tab-hint). Never at the top; the guard fails a report where it is not last.
 2. **Progress bar + label** — fixed top of viewport, updates live
 3. **Tab-to-fill on textareas** — empty textarea + Tab key → placeholder drops in as editable
 4. **Tier badges** (when sections are tiered — t0/t1/t2/t3)
@@ -179,7 +179,6 @@ Each section in the report follows this shape:
 
 ```html
 <section class="s" data-section="short-slug">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="short-slug"></label>
   <h2>N · Human-readable section title</h2>
 
   <p>Section content. Tables, lists, paragraphs as needed.</p>
@@ -193,9 +192,12 @@ Each section in the report follows this shape:
 
   <textarea class="note" data-q="decision-notes" placeholder="A recommendation the user can accept or rewrite on Tab..."></textarea>
   <div class="tab-hint">▸ tab in empty textarea = drop placeholder as editable</div>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="short-slug"></label>
 </section>
 ```
 
+- The `.check` label is always the last element of its section (bottom, right-aligned, dashed rule above). Consistency across reports is the point.
 - `data-section` and `data-cb` should match (used by progress + state)
 - `data-q` on toggles and textareas: short, lowercase, hyphenated. Becomes the heading in exported markdown.
 - Placeholder text on textareas is the agent's recommendation written so the user can accept it on Tab or rewrite freely. Pre-fill choices the user can reshape.

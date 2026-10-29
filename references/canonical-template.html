@@ -1,10 +1,10 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
-<!-- field-report-template v3.1.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
+<!-- field-report-template v3.1.1 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="field-report-version" content="3.1.0">
+<meta name="field-report-version" content="3.1.1">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -43,6 +43,7 @@ section.s.done{opacity:.55;background:var(--done-bg)}
 section.s.done h2{text-decoration:line-through;color:var(--dim)}
 section.s h2{margin:14px 0 10px;font:700 20px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;padding-right:54px}
 section.s .check{position:absolute;top:18px;right:8px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font:700 11px/1 ui-monospace,Menlo,monospace;color:var(--brown);text-transform:uppercase;letter-spacing:.06em}
+section.s .check{position:static;display:flex;justify-content:flex-end;margin:18px 0 0;padding-top:10px;border-top:2px dashed var(--rule)}
 section.s .check input{appearance:none;width:24px;height:24px;border:2px solid var(--brown);border-radius:6px;background:var(--card);cursor:pointer;transition:all .15s ease;margin:0;position:relative}
 section.s .check input:checked{background:var(--green);border-color:var(--green)}
 section.s .check input:checked::after{content:"✓";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font:900 16px/1 ui-monospace,Menlo,monospace}
@@ -147,7 +148,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   .progress-label{display:none}
   .totals{grid-template-columns:1fr 1fr}
   section.s h2{font-size:17px;padding-right:0}
-  section.s .check{position:static;margin:0 0 8px}
+  section.s .check{position:static;margin:14px 0 0}
   section.s .check input{width:20px;height:20px}
   .bar{right:8px;bottom:8px}
   .posted-stamp{font-size:46px}
@@ -263,9 +264,6 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
 <!-- ============================================================ -->
 <!-- SECTION: Repeatable section with optional checkbox + progress -->
 <section class="s" data-section="section-id">
-  <!-- OPTIONAL: Checkbox top-right (remove if not needed) -->
-  <label class="check"><span>done</span><input type="checkbox" data-cb="section-id"></label>
-  
   <h2>Section Title</h2>
   
   <p>Content here.</p>
@@ -294,6 +292,9 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
   <!-- OPTIONAL: Textarea (editable notes; supports Tab-to-fill) -->
   <textarea class="note" data-q="section-notes" placeholder="Suggested placeholder text · focus + Tab to drop in as editable text"></textarea>
   <p class="tab-hint">tip: focus this textarea + hit Tab to drop the placeholder in as editable text</p>
+
+  <!-- OPTIONAL: Done checkbox, bottom of the section, always the LAST element (remove if not needed). The guard rejects a report where it is not last. -->
+  <label class="check"><span>done</span><input type="checkbox" data-cb="section-id"></label>
 </section>
 
 <!-- ============================================================ -->
@@ -543,7 +544,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     },
     instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
-    // Receipt before relay (2026-10-08), narrowed in v3.1.0: when nobody is listening,
+    // Receipt before relay (2026-10-08), narrowed in v3.1.1: when nobody is listening,
     // POST writes the answers to disk as a download named <slug>-answers.md, the marker
     // every scanner already honours. When an agent is listening, harvest writes it.
     receipt(b){
@@ -556,7 +557,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     async post(){
       const b=this.batch();
       if(this.live()){
-        // One press (v3.1.0): queue the batch, then send it. When an agent is listening
+        // One press (v3.1.1): queue the batch, then send it. When an agent is listening
         // the harvest writes the receipt beside the report, so no <slug>-answers.md download.
         window.lavish.queuePrompt(this.prompt(b),{tag:"field-report",text:`POST ${b.slug} · ${b.changed.length} changed`,queueKey:"field-report:"+b.slug,data:{slug:b.slug,session:b.session,path:b.path,changed:b.changed,items:b.items.map(i=>({id:i.id,changed:i.changed,answered:i.answered}))}});
         if(typeof window.lavish.sendQueuedPrompts==="function"){
