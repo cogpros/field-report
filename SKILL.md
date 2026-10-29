@@ -10,7 +10,7 @@ description: >
   canonical template — 17 baseline features + 2 optional patterns. Do NOT
   auto-fire on description match; manual invocation only. NOT for: read-only
   audit logs with no user input, non-HTML outputs.
-version: 3.1.1
+version: 3.1.2
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -20,7 +20,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v3.1.1
+# Skill: field-report v3.1.2
 
 ## Purpose
 
@@ -141,7 +141,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 11. **Session-ID in 3 places** — HTML comment top, `data-session-id` attribute on body, exported markdown header
 12. **Toggle groups** — `.toggles` with `.toggle.go/.defer/.kill` colored states
 13. **Light/Dark mode toggle (top-right)** — default dark, button text `→ Light` / `→ Dark`, persists to localStorage
-14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference
+14. **localStorage persistence + restore** — toggles, textareas, checkbox state, mode preference. Since v3.1.2: saves per key (a tab writes only the keys it changed, merged into the stored object, so a stale or second window cannot clobber a box another tab checked), listens to the `storage` event so other windows update live, records a done-time per box, and keeps every stored answer across a re-render of the same slug. **Reopen:** an agent that wants a section looked at again adds `data-reopen="<ISO time>"` to its `<section class="s">`; on load a box whose stored done-time is earlier than that value (or missing) is unchecked and shows a REOPENED note until the operator checks it again. Sections without the attribute never lose their state. Reopen only when your work genuinely invalidates a done box; otherwise leave the attribute off.
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
 16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea via the same localStorage slot; collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
 17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` (labeled POST at rest since v2.4.1) and the `Agent` cell in the meta row. When nobody is listening, POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours. Then it reads `window.lavish`: listening → the batch is queued (`queuePrompt`) and sent (`sendQueuedPrompts`) in one press, with no download (harvest writes the receipt beside the report); nobody listening → the batch is copied with an attach instruction. The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
