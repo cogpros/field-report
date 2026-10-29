@@ -4,9 +4,9 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 
 ## Patterns (18 baseline + 2 optional + 3 foundational)
 
-### 1. Section Checkboxes (Top-Right)
+### 1. Section Checkboxes (Bottom)
 **Status:** Canonical
-**What it does:** Each section has a checkbox in the top-right corner. Toggle to mark done. Section dims and text strikes through when complete.
+**What it does:** Each section ends with a done checkbox, right-aligned at the bottom, the last element of the section (dashed rule above it). Toggle to mark done. Section dims and text strikes through when complete.
 **Notes:** New pattern, replacing an older tier-badge approach.
 
 ### 2. Progress Bar + Label

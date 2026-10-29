@@ -51,6 +51,38 @@ if [ -n "$CURRENT" ]; then
   fi
 fi
 
+# The done checkbox (label.check) must be the last element of its section.
+if ! python3 - "$FP" <<'PY' 2>/dev/null
+import sys
+from html.parser import HTMLParser
+VOID = {"input","br","img","hr","meta","link","source","col","wbr"}
+class P(HTMLParser):
+    # Per open section.s: depth below it, and whether its check label has closed.
+    def __init__(s):
+        super().__init__(); s.st=[]; s.bad=False
+    def handle_starttag(s, tag, attrs):
+        cls = (dict(attrs).get("class") or "").split()
+        if tag == "section" and "s" in cls:
+            s.st.append({"d":0,"in_label":False,"closed":False}); return
+        if not s.st: return
+        t = s.st[-1]
+        if t["closed"] and t["d"] == 0: s.bad = True  # element after the check label
+        if tag in VOID: return
+        if tag == "label" and "check" in cls and t["d"] == 0: t["in_label"] = True
+        t["d"] += 1
+    def handle_endtag(s, tag):
+        if not s.st or tag in VOID: return
+        t = s.st[-1]
+        if tag == "section" and t["d"] == 0: s.st.pop(); return
+        t["d"] -= 1
+        if tag == "label" and t["in_label"] and t["d"] == 0: t["in_label"]=False; t["closed"]=True
+p = P(); p.feed(open(sys.argv[1]).read())
+sys.exit(1 if p.bad else 0)
+PY
+then
+  missing+=("done-checkbox-not-last-in-section")
+fi
+
 if [ "${#missing[@]}" -gt 0 ]; then
   cat >&2 <<MSG
 [field-report-guard] NON-CANONICAL REPORT: $(basename "$FP")

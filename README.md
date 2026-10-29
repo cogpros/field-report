@@ -29,7 +29,7 @@ Every report the skill produces comes from one canonical template (`references/c
 - An open-mic textarea at the bottom for anything else
 
 **State that survives across sessions:**
-- Section checkboxes (top-right) with a live progress bar at top of viewport
+- Section checkboxes (bottom of each section) with a live progress bar at top of viewport
 - `localStorage` persistence per file — close the tab, open it tomorrow, your answers are still there
 - A **POSTED** stamp that slams in across the page after any export, dated and timed, so reopens show "this one is done"
 - A **receipt** on every POST: the page downloads `<slug>-answers.md` before it talks to any agent, so the record of your answers lives on disk, not in a tab; served next to that file, the page shows an **ANSWERED** stamp on open
