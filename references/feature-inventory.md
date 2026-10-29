@@ -68,6 +68,8 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 ### 14. localStorage Persistence
 **Status:** Canonical
 **What it does:** Toggles, textareas, checkbox state, and mode preference are saved to localStorage and restored on page load.
+**v3.1.2 durability:** saves are per key, merged into the stored object (a stale or second window cannot wipe a box another tab checked); the `storage` event keeps other open windows live; each box records a done-time (`done__<id>`); a re-render of the same slug keeps every stored answer and box, including ones the agent pre-filled over or sections the new render dropped. **Agent reopen:** `<section class="s" data-reopen="<ISO time>">` unchecks on load only a box whose done-time is earlier than that value (or missing) and shows a REOPENED note; sections without the attribute never lose state.
+**Why:** Operator, 2026-10-29: "every box i have checked done, needs to remain done when i come back, unless your work opens it back up." Observed: progress fell from 3/15 to 1/15 after a re-render. Test: `node tests/test-persist.js`.
 
 ### 15. Three-Timestamp Header (Compiled · Patched · Opened)
 **Status:** Canonical (added 2026-05-17 after a stale-timestamp incident)

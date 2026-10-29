@@ -30,7 +30,7 @@ Every report the skill produces comes from one canonical template (`references/c
 
 **State that survives across sessions:**
 - Section checkboxes (bottom of each section) with a live progress bar at top of viewport
-- `localStorage` persistence per file — close the tab, open it tomorrow, your answers are still there
+- `localStorage` persistence per file — close the tab, open it tomorrow, your answers and checked boxes are still there. Saves are per key, so a second or stale window cannot wipe what another one checked, and open windows update live. A re-render of the same file keeps everything; the agent can deliberately reopen a section with `data-reopen="<ISO time>"` (shows REOPENED until you check it again)
 - A **POSTED** stamp that slams in across the page after any export, dated and timed, so reopens show "this one is done"
 - A **receipt** on every POST: the page downloads `<slug>-answers.md` before it talks to any agent, so the record of your answers lives on disk, not in a tab; served next to that file, the page shows an **ANSWERED** stamp on open
 - Three timestamps in the header — Compiled (when generated), Patched (when last edited), Opened (live, set by JS on every page load). Solves the "I closed the tab because it looked stale" trap.

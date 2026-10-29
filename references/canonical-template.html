@@ -1,10 +1,10 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
-<!-- field-report-template v3.1.1 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
+<!-- field-report-template v3.1.2 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="field-report-version" content="3.1.1">
+<meta name="field-report-version" content="3.1.2">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -398,7 +398,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         const single=!group.classList.contains("multi");
         if(single) group.querySelectorAll(".toggle").forEach(x=>x.classList.remove("active"));
         t.classList.toggle("active");
-        save();
+        saveToggle(group);
       });
     });
   });
@@ -410,7 +410,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         e.preventDefault();
         t.value=t.placeholder;
         t.select();
-        save();
+        saveNote(t);
       }
     });
   });
@@ -428,34 +428,65 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
   }
   document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{
     cb.addEventListener("change",()=>{
-      // Hardened handler — defer progress/save to next frame so the visual toggle paints first.
+      // Write storage NOW (a hidden tab never runs requestAnimationFrame, which used to eat the save);
+      // only the progress repaint is deferred so the visual toggle paints first.
       // Origin: 2026-05-17 freeze incident in execution-plan report (layout-shift + sync DOM writes felt like a freeze).
       try{
-        const section=cb.closest("section.s");
+        const section=cb.closest("section.s"), id=cb.dataset.cb;
         if(section) section.classList.toggle("done", cb.checked);
-        requestAnimationFrame(()=>{updateProgress();save()});
+        saveKeys({["check__"+id]:cb.checked?"1":"0",["done__"+id]:cb.checked?new Date().toISOString():null,["reopened__"+id]:null});
+        markReopened(cb,false);
+        requestAnimationFrame(updateProgress);
       }catch(err){console.error("check handler error:",err)}
     });
   });
   updateProgress();
 
-  function save(){
-    const data={};
-    document.querySelectorAll("textarea.note").forEach(t=>{if(t.dataset.q) data[t.dataset.q]=t.value});
-    document.querySelectorAll(".toggles[data-q]").forEach(g=>{const active=[...g.querySelectorAll(".toggle.active")].map(x=>x.textContent.trim());data[g.dataset.q]=active.join(",")});
-    document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{data["check__"+cb.dataset.cb]=cb.checked?"1":"0"});
+  // Persistence (v3.1.2). The stored object is shared by every window on this origin, so a tab
+  // only ever writes the keys IT changed, merged into what is stored right now. It never
+  // rewrites the whole object from its own DOM: a stale tab used to wipe boxes another tab had
+  // checked. Keys: <q> answers/toggles, check__<id> "1"/"0", done__<id> ISO done-time,
+  // reopened__<id> the data-reopen value that opened it.
+  function readStore(){let d=null;try{d=JSON.parse(localStorage.getItem(storeKey)||"{}")}catch(e){}return (d&&typeof d==="object")?d:{}}
+  function saveKeys(changes){
+    const data=readStore();
+    Object.keys(changes).forEach(k=>{if(changes[k]===null) delete data[k]; else data[k]=changes[k]});
     try{localStorage.setItem(storeKey,JSON.stringify(data))}catch(e){}
   }
-  function restore(){
-    let data={};
-    try{data=JSON.parse(localStorage.getItem(storeKey)||"{}")}catch(e){}
-    document.querySelectorAll("textarea.note").forEach(t=>{const k=t.dataset.q;if(k && data[k]!==undefined && !t.value) t.value=data[k]});
-    document.querySelectorAll(".toggles[data-q]").forEach(g=>{const k=g.dataset.q;if(!k || !data[k]) return;const wanted=data[k].split(",");g.querySelectorAll(".toggle").forEach(t=>{if(wanted.includes(t.textContent.trim())) t.classList.add("active")})});
-    document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{const k="check__"+cb.dataset.cb;if(data[k]==="1"){cb.checked=true;cb.closest("section.s").classList.add("done")}});
+  function saveNote(t){if(t.dataset.q) saveKeys({[t.dataset.q]:t.value})}
+  function saveToggle(g){if(g.dataset.q) saveKeys({[g.dataset.q]:[...g.querySelectorAll(".toggle.active")].map(x=>x.textContent.trim()).join(",")})}
+  // Agent-controlled reopen: <section data-reopen="<ISO time>"> unchecks on load only a box whose stored
+  // done-time is earlier than that value (or has none). Sections without the attribute never lose state.
+  function markReopened(cb,on){
+    const label=cb.closest("label"); if(!label) return;
+    let n=label.querySelector(".reopened");
+    if(on && !n){n=document.createElement("span");n.className="reopened";n.textContent="REOPENED";n.title="the agent reopened this section";n.style.cssText="color:var(--amber);font-weight:700;letter-spacing:.06em;margin-right:10px";label.insertBefore(n,label.firstChild)}
+    else if(!on && n){n.remove()}
+  }
+  function applyStored(data,live){
+    document.querySelectorAll("textarea.note").forEach(t=>{const k=t.dataset.q;if(k && data[k]!==undefined && t.value!==data[k] && !(live && document.activeElement===t)) t.value=data[k]});
+    document.querySelectorAll(".toggles[data-q]").forEach(g=>{const k=g.dataset.q;if(data[k]===undefined) return;const wanted=data[k]?data[k].split(","):[];g.querySelectorAll(".toggle").forEach(t=>t.classList.toggle("active",wanted.includes(t.textContent.trim())))});
+    const reopen={};
+    document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{
+      const id=cb.dataset.cb,k="check__"+id,section=cb.closest("section.s");
+      let on=data[k]==="1";
+      const at=section && section.dataset.reopen;
+      if(on && at){
+        const ra=Date.parse(at),da=Date.parse(data["done__"+id]||"");
+        if(!isNaN(ra) && (isNaN(da) || da<ra)){on=false;reopen[k]="0";reopen["done__"+id]=null;reopen["reopened__"+id]=at}
+      }
+      if(data[k]!==undefined){cb.checked=on;if(section) section.classList.toggle("done",on)}
+      markReopened(cb,!!at && !on && (reopen["reopened__"+id]===at || data["reopened__"+id]===at));
+    });
+    if(Object.keys(reopen).length) saveKeys(reopen);
     updateProgress();
   }
+  function restore(){applyStored(readStore(),false)}
   restore();
-  document.querySelectorAll("textarea.note").forEach(t=>t.addEventListener("input",save));
+  document.querySelectorAll("textarea.note").forEach(t=>t.addEventListener("input",()=>saveNote(t)));
+  // A second window (lavish opens one, an agent may open another) stays in step live.
+  window.addEventListener("storage",e=>{if(e.key===null || e.key===storeKey) applyStored(readStore(),true)});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden) applyStored(readStore(),true)});
 
   // POSTED stamp
   function fmtTs(d){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Regina",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d).replace(",","")}
@@ -628,6 +659,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     fta.value=src.value;
     fta.addEventListener('input',function(){push(fta,src)});
     src.addEventListener('input',function(){if(!syncing)fta.value=src.value});
+    window.addEventListener('storage',function(){if(document.activeElement!==fta)fta.value=src.value});
     var k='fieldreport.floatNotes.collapsed';
     try{if(localStorage.getItem(k)==='1')panel.classList.add('collapsed')}catch(e){}
     panel.querySelector('.fn-head').addEventListener('click',function(){panel.classList.toggle('collapsed');try{localStorage.setItem(k,panel.classList.contains('collapsed')?'1':'0')}catch(e){}});
