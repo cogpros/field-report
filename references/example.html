@@ -149,7 +149,6 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 
 <!-- ============================================================ -->
 <section class="s" data-section="project-type">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="project-type"></label>
   <h2>1 · Project type</h2>
   <p>The directory is empty. Pick the shape so the agent knows which scaffolds to lay down, which lint config to install, and which test runner to wire in.</p>
 
@@ -162,11 +161,12 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 
   <textarea class="note" data-q="project-type-notes" placeholder="Picking web app. Next 15, app router, Tailwind. Skip the example pages."></textarea>
   <p class="tab-hint">tip: focus this textarea + hit Tab to drop the agent's recommendation in as editable text</p>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="project-type"></label>
 </section>
 
 <!-- ============================================================ -->
 <section class="s" data-section="review-style">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="review-style"></label>
   <h2>2 · Code review style</h2>
   <p>How strict should the agent be when it reads back its own diffs before committing? Light = "looks fine, ship it." Paranoid = "second-pass adversarial review with security scan, runs <code>/crucible</code> on anything touching auth."</p>
 
@@ -183,11 +183,12 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
 
   <textarea class="note" data-q="review-style-notes" placeholder="Standard for now. Switch to paranoid before first production deploy."></textarea>
   <p class="tab-hint">tab to accept the recommendation as a draft, or rewrite</p>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="review-style"></label>
 </section>
 
 <!-- ============================================================ -->
 <section class="s" data-section="commit-convention">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="commit-convention"></label>
   <h2>3 · Commit message convention</h2>
   <p>The agent will be writing most of your commits. Pick the format so it does not have to guess. The flow below is what the agent will follow per commit:</p>
 
@@ -215,11 +216,12 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   </div>
 
   <textarea class="note" data-q="commit-notes" placeholder="Conventional Commits. Keep the Co-Authored-By tag — this is a solo-dev project and I want the AI provenance in git history."></textarea>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="commit-convention"></label>
 </section>
 
 <!-- ============================================================ -->
 <section class="s" data-section="skills-to-install">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="skills-to-install"></label>
   <h2>4 · Claude Code skills to wire in</h2>
   <p>Each skill below installs into <code>~/.claude/skills/&lt;name&gt;</code> and gets picked up automatically by the agent based on its description. Tick the ones you want; the agent will <code>git clone</code> them after this report is closed.</p>
 
@@ -274,15 +276,18 @@ git clone https://github.com/anthropics/skills/commit-leak-scan ~/.claude/skills
   <p class="muted">↑ hover the block, click <b>copy</b> in the top-right.</p>
 
   <textarea class="note" data-q="skills-notes" placeholder="Install field-report, systematic-debugging, commit-leak-scan. Skip claude-api for now — no SDK calls planned in v1."></textarea>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="skills-to-install"></label>
 </section>
 
 <!-- ============================================================ -->
 <section class="s" data-section="open-mic">
-  <label class="check"><span>done</span><input type="checkbox" data-cb="open-mic"></label>
   <h2>5 · Anything else before scaffolding starts?</h2>
   <p>Anything the agent should know that the previous four questions did not cover. Constraints, preferences, deadlines, things to avoid, file structure quirks, anything.</p>
 
   <textarea class="note" data-q="open-mic" placeholder="Use pnpm not npm. No tailwind plugin auto-install — I configure that by hand. Run prettier on every save."></textarea>
+
+  <label class="check"><span>done</span><input type="checkbox" data-cb="open-mic"></label>
 </section>
 
 <!-- ============================================================ -->
