@@ -1,10 +1,10 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
-<!-- field-report-template v3.0.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
+<!-- field-report-template v3.1.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="field-report-version" content="3.0.0">
+<meta name="field-report-version" content="3.1.0">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -543,10 +543,9 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     },
     instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
     remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
-    // Receipt before relay (2026-10-08): POST first writes the answers to disk as a
-    // download named <slug>-answers.md, the marker every scanner already honours.
-    // Only then does it hand a copy to whoever is listening. The record of the
-    // operator's act never depends on an agent remembering to write it.
+    // Receipt before relay (2026-10-08), narrowed in v3.1.0: when nobody is listening,
+    // POST writes the answers to disk as a download named <slug>-answers.md, the marker
+    // every scanner already honours. When an agent is listening, harvest writes it.
     receipt(b){
       const stampLine=`<!-- field-report receipt · slug=${b.slug} · answered=${b.items.filter(i=>i.answered).length}/${b.items.length} · posted=${new Date().toISOString()} -->`;
       const md=stampLine+"\n"+gather();
@@ -556,11 +555,17 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     },
     async post(){
       const b=this.batch();
-      try{this.receipt(b)}catch(e){toast("Receipt download failed; answers still in this page")}
       if(this.live()){
+        // One press (v3.1.0): queue the batch, then send it. When an agent is listening
+        // the harvest writes the receipt beside the report, so no <slug>-answers.md download.
         window.lavish.queuePrompt(this.prompt(b),{tag:"field-report",text:`POST ${b.slug} · ${b.changed.length} changed`,queueKey:"field-report:"+b.slug,data:{slug:b.slug,session:b.session,path:b.path,changed:b.changed,items:b.items.map(i=>({id:i.id,changed:i.changed,answered:i.answered}))}});
-        this.remember(b);toast("Receipt saved · queued for the agent · press Send to Agent");stamp();return;
+        if(typeof window.lavish.sendQueuedPrompts==="function"){
+          try{await window.lavish.sendQueuedPrompts();this.remember(b);toast("Sent to the agent");stamp();return}
+          catch(e){this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return}
+        }
+        this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return;
       }
+      try{this.receipt(b)}catch(e){toast("Receipt download failed; answers still in this page")}
       if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Receipt saved to Downloads · copied with attach instructions");stamp()}else{toast("Receipt saved to Downloads · copy failed")}
     },
     // ANSWERED stamp: when the page is served next to its own receipt (any static
@@ -578,7 +583,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         h1.insertAdjacentElement("afterend",tag);
       }catch(e){}
     },
-    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (then press Send to Agent)":"POST answers: nobody listening, copies the batch with attach instructions"}
+    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (one press)":"POST answers: nobody listening, copies the batch with attach instructions"}
   };
   wire.presence();wire.answeredStamp();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
   document.getElementById("postBtn").addEventListener("click",()=>wire.post());
