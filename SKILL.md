@@ -3,13 +3,17 @@ name: field-report
 triggers:
   - "/field-report"
   - "field report"
+  - "PFR"
 description: >
-  Manually invoked when the user asks for a "field report" or says "use
-  field-report for this". Generates an interactive HTML report (textareas after
-  every question, three export buttons, light/dark, localStorage) from a
-  canonical template — 17 baseline features + 2 optional patterns. Do NOT
-  auto-fire on description match; manual invocation only. NOT for: read-only
-  audit logs with no user input, non-HTML outputs.
+  PFR (Pollock Field Report) — the field report for decisions and walk-throughs.
+  Manually invoked when the user says /field-report, "field report", "PFR", or
+  "use field-report for this". Generates an interactive HTML report (textareas
+  after every question, three export buttons, light/dark, localStorage) from a
+  canonical template, and delivers it ONLY through Lavish (lavish-axi). This
+  skill is PFR only. It never produces the Daily Pulse, the wake-up plan, or a
+  morning report; those run on the separate Daily Pulse path. Do NOT auto-fire
+  on description match. NOT for: Daily Pulse / wake-up plan / morning report,
+  read-only audit logs with no user input, non-HTML outputs.
 version: 3.1.2
 license: MIT
 public_repo: https://github.com/cogpros/field-report
@@ -20,7 +24,23 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report v3.1.2
+# Skill: field-report (PFR) v3.1.2
+
+## Identity: this skill is PFR, and only PFR
+
+**PFR** is the field report for decisions and walk-throughs: the agent asks, the operator answers in place, the answers come back structured. Triggers: `/field-report`, "field report", "PFR". Nothing else triggers it.
+
+**Daily Pulse is a different thing and does not run here.** The Daily Pulse (the morning report, the wake-up plan) has its own generator (`daily-pulse`, maintained outside this repo). If the request says Daily Pulse, wake-up plan, or morning report, STOP: do not load this template, do not copy it, do not mimic its skin. Run the Daily Pulse path. The reverse holds too: never run the Daily Pulse machinery to produce a general PFR.
+
+| | PFR (this skill) | Daily Pulse (not this skill) |
+|---|---|---|
+| What it is | Decision / walk-through report with answer boxes | Morning plan and status pulse |
+| Triggers | `/field-report`, "field report", "PFR" | the Daily Pulse path (`daily-pulse`) |
+| Generator | `references/canonical-template.html` | `daily-pulse` (outside this repo) |
+| Delivery | Lavish only (see *The procedure*) | its own path |
+| `#tomorrowBell` banner | empty | the only place it belongs |
+
+Both report types are delivered through Lavish. This skill owns the PFR half of that rule.
 
 ## Purpose
 
@@ -28,10 +48,11 @@ Every field report comes out the same shape. The user opens a report and the sur
 
 ## Trigger conditions (manual invocation)
 
-**This skill is invoked manually, not by description-matching.** Auto-invocation of skills is unreliable in both directions (skipped when the agent thinks it can wing the answer; over-fired on tangential work). The user invokes this skill explicitly — typically by saying `use field-report for this` or `run the field-report skill`. Do not auto-fire on description match. See the public README's *Why manual invocation* section for the full reasoning.
+**This skill is invoked manually, not by description-matching.** Auto-invocation of skills is unreliable in both directions (skipped when the agent thinks it can wing the answer; over-fired on tangential work). The user invokes this skill explicitly — typically by `/field-report`, "field report", "PFR", `use field-report for this`, or `run the field-report skill`. Do not auto-fire on description match. See the public README's *Why manual invocation* section for the full reasoning.
 
 When the user has explicitly invoked the skill, all of these should be true before you generate the report:
 
+0. The request is a PFR. If it is the Daily Pulse, wake-up plan, or morning report, this skill is the wrong tool: stop and use the Daily Pulse path.
 1. You are generating an HTML file
 2. The file goes to the user's reports directory (see *Reports directory* below)
 3. The report contains at least one decision, question, callout, or open-ended section that asks the user for input
@@ -48,7 +69,7 @@ The skill writes every report into one directory the user chose at install time.
 
 After first run, the agent does not pick a default and does not ask again. The variable `${REPORTS_DIR}` is used below to stand for whichever path resolved.
 
-Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names an HTTP base that serves the same directory, e.g. a local static server. `${REPORTS_URL}` below stands for it; when unset, the delivery step prints only the file path.
+`CLAUDE_REPORTS_URL` / `reports_url:` (an HTTP base serving the same directory, e.g. a static server) is for indexes and dashboards only. It is never the PFR delivery url: a static origin has no Lavish session, so nobody can listen on it.
 
 > **Note:** the three-step resolver is agent behavior, not a shipped script. Subsequent invocations read the `reports_dir:` line from `CLAUDE.md`. If you want it deterministic, drop a small wrapper in `~/.local/bin` that reads the env var first and falls back to a grep of CLAUDE.md.
 
@@ -60,20 +81,30 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
 
 2. Edit the copy: replace placeholders, add sections.
 
-3. Save. Open it so an agent can listen (v2.3.0). If lavish-axi is available,
-   serve the file through it and start the poll; otherwise open the file
-   directly. Never steal focus (`open -g` on macOS).
-   # with lavish-axi (recommended): one session per file, agent long-polls.
+3. Save. Deliver through Lavish. Lavish is mandatory for a PFR: a report
+   that is not served by lavish-axi has no listening agent, no Send to Agent,
+   and no receipt harvest. It is not delivered.
    # PIN THE VERSION and use the same pin everywhere on the machine: a client of a
    # different version makes the shared server restart "for upgrade", which kills
    # every poll any agent has running. (Observed 3x in one weekend with one seat
    # unpinned.) 0.1.80 is the version this skill was tested against (bumped from 0.1.76 on 2026-10-28 alongside the v3.0.0 design freeze; Lavish's capture-phase click handler skips `[data-lavish-action]`, which the template now stamps).
    npx -y lavish-axi@0.1.80 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
-   open -g "<session url printed above>"
-   npx -y lavish-axi@0.1.80 poll "${REPORTS_DIR}/<your-report-slug>.html"   # blocks until the user sends; run it as a harness-tracked background job if your harness has one
-   # without lavish-axi
-   # macOS: open -g  |  Linux: xdg-open  |  Windows: start
-   open -g "${REPORTS_DIR}/<your-report-slug>.html"
+   open -g "<session url printed above>"          # never steal focus
+   npx -y lavish-axi@0.1.80 poll "${REPORTS_DIR}/<your-report-slug>.html"
+   # The poll blocks until the user sends. Run it as a harness-tracked background
+   # job whose completion wakes THIS session. Never nohup, `&`, or a detached terminal.
+   #
+   # Session url: prefer the one lavish prints. If the tailnet bind fails (the url
+   # does not load, or lavish cannot bind the tailnet address), use the local
+   # 127.0.0.1 url lavish serves on the same port and deliver THAT as the one url.
+   # Never swap in a different origin later (see step 5).
+   #
+   # NEVER the delivery: a static file server url (http://<host>:<port>/<slug>.html,
+   # any plain static server), file://, or `open` on the bare .html. Those pages
+   # have no window.lavish: nobody is listening, POST can only copy to the
+   # clipboard, and answers live in a per-origin localStorage nobody reads.
+   # If lavish-axi will not start, say so and stop. Do not fall back to a bare
+   # HTML open and call it delivered.
 
 4. Emit a bus event (see Observability section) if your project has one.
 
@@ -86,16 +117,25 @@ Optionally, `CLAUDE_REPORTS_URL` (or a `reports_url:` line in `CLAUDE.md`) names
    user can click or paste. No trailing prose, no follow-up question after
    it. Format (URL first, absolute path second):
 
-       Report: <lavish session url, or ${REPORTS_URL}/<your-report-slug>.html>
+       Report: <lavish session url>
        File:   ${REPORTS_DIR}/<your-report-slug>.html
 
    Deliver ONE url and always the same one. localStorage is per origin, so a
-   report opened by file:// and later through lavish keeps two separate sets
-   of answers. The lavish session url is reachable from a tablet over a
-   tailnet; a bare filename is clickable nowhere. The user grep-scans the
-   bottom of the chat to find it; anything after these lines pushes them out
-   of view.
+   report opened by file:// (or a static server) and later through lavish keeps
+   two separate sets of answers. The Report: line is always the lavish session
+   url, never ${REPORTS_URL} and never a file:// path. The lavish session url
+   is reachable from a tablet over a tailnet; a bare filename is clickable
+   nowhere. The user grep-scans the bottom of the chat to find it; anything
+   after these lines pushes them out of view.
 ```
+
+**Lavish failure modes (read before reporting a problem).**
+
+- **Working spin.** The board keeps showing Working after you hand a result back until the reply command exits 0 (`lavish-axi reply <file> --agent-reply "<message>"`, or `poll ... --agent-reply`). Chat text does not clear it. A reply that was never sent is the usual reason the board looks stuck.
+- **Poll lives in the owning session.** The poll must run in the session that will act on the answers, tracked by that harness so its completion resumes that session. A poll in a detached terminal, another session, or an untracked background job delivers the operator's Send to a process that cannot act. Do not tell the user the report is being monitored until the wake path is live. If the poll is killed or times out, re-run it; feedback stays queued until delivery.
+- **Pin mismatch.** One pin per machine. A client of another version restarts the shared server and kills every running poll.
+- **Tailnet bind fails.** Use the 127.0.0.1 url on the same port; do not downgrade to a static server.
+- **Poll returns `browser_disconnected` or `ended`.** See *Closing the loop*.
 
 The canonical template at `references/canonical-template.html` is the single source of truth. Start from it for every report so the 17 baseline features (Section pattern below) land consistently. Hand-building from memory is the failure mode this skill exists to prevent — three drift-mismatched reports in one session before v2.1.0 shipped confirmed it.
 
@@ -114,7 +154,7 @@ All placeholders use `{NAME_PLACEHOLDER}` form. Replace every one before saving.
 | `{PATCH_TIMESTAMP_PLACEHOLDER}` | Same as compile on first write. Update to current time on every subsequent edit (and add a changelog row — see below). |
 | `{REPORT_TYPE_PLACEHOLDER}` | One-line context (e.g. `architecture decision · 4 options`) |
 | `{CHANGELOG_PLACEHOLDER}` | Empty on fresh reports (the changelog auto-hides). On each patch/reopen, **prepend** one row — `<div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>` — newest first. This is where updates go; never grow the status line into a ·-chain. |
-| `{TOMORROW_BANNER_PLACEHOLDER}` | Optional, empty by default. Fill with the `#tomorrowBell` snippet (see template comment) to put ONE user-chosen next action at the very top — the cheapest/most time-critical open item. |
+| `{TOMORROW_BANNER_PLACEHOLDER}` | Replace with nothing (empty string). Always empty for a PFR. The `#tomorrowBell` "DO THIS TOMORROW" banner belongs to the Daily Pulse; the guard rejects a PFR that carries it. |
 | `{REPORT_PATH_PLACEHOLDER}` | Absolute path of the saved report, e.g. `${REPORTS_DIR}/<slug>.html`. The agent wire prints it in the attach instruction; falls back to `location.pathname` if left unreplaced. |
 | `{SUBTITLE_PLACEHOLDER}` | Sub-heading text under H1 |
 | `{SESSION_NOTES_PLACEHOLDER}` | Short note about session context (e.g. `synthesizes 7 checkpointed sessions`) |
@@ -150,7 +190,7 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 
 - **Five-lens panel** — five `.lens-card` perspectives in a grid, each with its own textarea
 - **Synthesis block** — italic serif summary of preceding section (use `.synthesis` element)
-- **"DO THIS TOMORROW" banner** — `#tomorrowBell` at the very top naming ONE user-chosen next action (the cheapest/most time-critical open item). Fill `{TOMORROW_BANNER_PLACEHOLDER}`; empty renders nothing.
+- **"DO THIS TOMORROW" banner** — Daily Pulse only. Its CSS stays in the template so the frozen chrome is unchanged, but a PFR leaves `{TOMORROW_BANNER_PLACEHOLDER}` empty (it renders nothing) and the guard fails a PFR that fills it.
 
 The canonical template has every one of these wired correctly. Do not reimplement — copy from the template.
 
@@ -229,7 +269,9 @@ Run mentally before opening in the browser:
 - [ ] Status-line timestamps real; each patch added a changelog row (newest first), not appended to the status line
 - [ ] File saved to `${REPORTS_DIR}`
 - [ ] `{REPORT_PATH_PLACEHOLDER}` is the real absolute path
-- [ ] Opened through lavish-axi and the poll is running, or opened directly with `open -g` if lavish is unavailable
+- [ ] `{TOMORROW_BANNER_PLACEHOLDER}` replaced with nothing (no `#tomorrowBell` element)
+- [ ] Served through `npx -y lavish-axi@0.1.80` and the poll is running in this session; the `Report:` line is the lavish url (not a static-server url, not file://)
+- [ ] The request was a PFR, not the Daily Pulse / wake-up plan / morning report
 
 ## Anti-patterns (user complaints these cause)
 
@@ -239,6 +281,8 @@ Run mentally before opening in the browser:
 - **Timestamp stale when I open it next day** → you skipped feature 17 (three-timestamp header). Mandatory.
 - **Checkbox click freezes the page** → the freeze-fix CSS (no layout shift) + JS (try/catch + requestAnimationFrame) is in the template. Do not rewrite the JS.
 - **Restart prompts run together** → use a `.restart-prompt` block when a section is a copy-paste prompt to launch a session.
+- **A static url or file:// handed over as the report** → no Lavish session, no listener, answers stranded in a separate localStorage. Serve through lavish-axi; if it will not start, report that and stop.
+- **A PFR that looks like, or is titled as, the Daily Pulse** → wrong skill. The Daily Pulse has its own generator; this skill never produces it.
 - **"Which report did you make? I have to scroll up to find it"** → you skipped step 5 of the procedure. The filename MUST be the last line of your chat reply (no prose after, no follow-up question, no recommendation). User scans the bottom of the message for it.
 
 ## Updating the template

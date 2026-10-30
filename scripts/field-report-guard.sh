@@ -1,10 +1,14 @@
 #!/bin/bash
-# field-report-guard.sh — PostToolUse hook (matcher: Write|Edit). v3.0.0.
+# field-report-guard.sh — PostToolUse hook (matcher: Write|Edit). Template stamp unchanged (3.1.2).
 # Canonical copy lives in the field-report skill (scripts/); install over
 # ~/1HUGR/bin/field-report-guard.sh. Differences from the pre-3.0.0 guard:
 #   * a report must carry <meta name="field-report-version" content="X">
 #     matching the CURRENT template, read live from references/canonical-template.html.
 #     Reports from an older template fail until re-rendered.
+#   * PFR-only identity and Lavish-only delivery: a report that is a Daily
+#     Pulse / wake-up plan / morning report, carries a filled #tomorrowBell banner,
+#     points at a static :8989 url, or names an unpinned / mismatched lavish-axi is # commit-leak-scan: allow
+#     rejected. HTML comments and <style> are ignored, so the template passes.
 # Reads the PostToolUse JSON on stdin, extracts file_path. Env overrides (tests):
 #   FR_REPORTS_DIR, FR_TEMPLATE.
 
@@ -83,6 +87,39 @@ then
   missing+=("done-checkbox-not-last-in-section")
 fi
 
+# PFR identity and Lavish-only delivery. Findings print one per line on stdout.
+PIN="$(grep -Eo 'npx -y lavish-axi@[0-9][0-9.]*' "$TEMPLATE" 2>/dev/null | head -1 | sed -E 's/.*@//' || true)"
+FTMP="$(mktemp)"
+python3 - "$FP" "$PIN" > "$FTMP" 2>/dev/null <<'PY' || true
+import os, re, sys
+fp, pin = sys.argv[1], sys.argv[2]
+src = open(fp, encoding="utf-8", errors="replace").read()
+body = re.sub(r"<!--.*?-->", "", src, flags=re.S)
+body = re.sub(r"<style\b.*?</style>", "", body, flags=re.S | re.I)
+out = []
+name = os.path.basename(fp).lower()
+if re.match(r"(daily[-_ ]?pulse|wake[-_ ]?up|morning[-_ ]?report)", name):
+    out.append("not-a-PFR(daily-pulse/wake-up/morning filename)")
+head = " ".join(re.findall(r"<(?:title|h1)\b[^>]*>(.*?)</(?:title|h1)>", body, flags=re.S | re.I))
+if re.search(r"daily\s+pulse|wake[- ]?up\s+plan|morning\s+report", head, flags=re.I):
+    out.append("not-a-PFR(title/h1 names the Daily Pulse; this skill is PFR only)")
+if re.search(r"""id\s*=\s*["']tomorrowBell["']""", body):
+    out.append("tomorrowBell-banner-in-PFR(Daily Pulse only)")
+if re.search(r":8989\b", body):  # commit-leak-scan: allow
+    out.append("static-:8989-url(PFR is delivered through lavish-axi, never a static server)")  # commit-leak-scan: allow
+if re.search(r"npx\s+-y\s+lavish-axi(?![@\w-])", body):
+    out.append("unpinned-lavish-axi(use lavish-axi@" + (pin or "PIN") + ")")
+if pin:
+    bad = sorted({v for v in re.findall(r"lavish-axi@([0-9][0-9.]*)", body) if v != pin})
+    if bad:
+        out.append("lavish-axi-pin-mismatch(%s; template pin is %s)" % (",".join(bad), pin))
+print("\n".join(out))
+PY
+while IFS= read -r finding; do
+  [ -n "$finding" ] && missing+=("$finding")
+done < "$FTMP"
+rm -f "$FTMP"
+
 if [ "${#missing[@]}" -gt 0 ]; then
   cat >&2 <<MSG
 [field-report-guard] NON-CANONICAL REPORT: $(basename "$FP")
@@ -91,6 +128,8 @@ This report is not built from the current canonical field-report template
 (hand-built or an older version). Old forks lose the operator's work and miss
 the frozen look.
 ACTION: re-render via the field-report skill (cp references/canonical-template.html).
+This skill is PFR only: it never produces the Daily Pulse, and a PFR is delivered
+through lavish-axi (pinned), never a static url or file://.
 MSG
   exit 2
 fi
