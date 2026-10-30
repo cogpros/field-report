@@ -89,7 +89,10 @@ After first run, the agent does not pick a default and does not ask again. The v
    # every poll any agent has running. (Observed 3x in one weekend with one seat
    # unpinned.) 0.1.80 is the version this skill was tested against (bumped from 0.1.76 on 2026-10-28 alongside the v3.0.0 design freeze; Lavish's capture-phase click handler skips `[data-lavish-action]`, which the template now stamps).
    npx -y lavish-axi@0.1.80 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
-   open -g "<session url printed above>"          # never steal focus
+   open "<session url printed above>"             # ALWAYS open it in front, every serve
+   # Serving a PFR means opening it in the operator's browser, in front. Never
+   # hand over a link without opening it, and never `open -g` (it opens behind
+   # other windows, so the operator never sees it). A link alone is a failed serve.
    npx -y lavish-axi@0.1.80 poll "${REPORTS_DIR}/<your-report-slug>.html"
    # The poll blocks until the user sends. Run it as a harness-tracked background
    # job whose completion wakes THIS session. Never nohup, `&`, or a detached terminal.
