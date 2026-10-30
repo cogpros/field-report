@@ -46,9 +46,9 @@ Every report the skill produces comes from one canonical template (`references/c
 
 **State that survives across sessions:**
 - Section checkboxes (bottom of each section) with a live progress bar at top of viewport
-- `localStorage` persistence per file — close the tab, open it tomorrow, your answers and checked boxes are still there. Saves are per key, so a second or stale window cannot wipe what another one checked, and open windows update live. A re-render of the same file keeps everything; the agent can deliberately reopen a section with `data-reopen="<ISO time>"` (shows REOPENED until you check it again)
-- A **POSTED** stamp that slams in across the page after any export, dated and timed, so reopens show "this one is done"
-- A **receipt** on every POST: the page downloads `<slug>-answers.md` before it talks to any agent, so the record of your answers lives on disk, not in a tab; served next to that file, the page shows an **ANSWERED** stamp on open
+- **Answers live on disk** (v4.0.0). The page is a renderer: your answers are kept in `<slug>-answers.md` next to the report, and `scripts/fr-hydrate.sh` bakes them into the page's `fr-state` block, so every reload shows them. The page stores nothing in the browser. Lavish serves reports in an iframe sandboxed without same-origin access, where `localStorage` throws, so a browser store would lose everything on reload. The header says `unsaved · press POST` after an edit and `on disk <time>` once your answers are saved. The agent can deliberately reopen a section with `data-reopen="<ISO time>"` (shows REOPENED until you check it again and POST)
+- A **POSTED** stamp that slams in across the page after POST or any export, dated and timed; on reload it shows the posted time from disk, so reopens show "this one is done"
+- A **receipt** on every POST: when nobody is listening the page downloads `<slug>-answers.md`; when an agent listens, its harvest writes the same file. Either way the record of your answers lives on disk, not in a tab
 - Three timestamps in the header — Compiled (when generated), Patched (when last edited), Opened (live, set by JS on every page load). Solves the "I closed the tab because it looked stale" trap.
 
 **Export, surface, and polish:**
@@ -137,7 +137,7 @@ A few patterns adopters have used:
 
 **4. Nothing.** Open files directly from the directory in your file browser. Fine for low volume.
 
-The shipped reports already carry their own state — the POSTED stamp persists per-file via localStorage, and each file's `<title>`, session ID, and three timestamps give any indexer what it needs.
+The shipped reports already carry their own state — the `fr-state` block holds the hydrated answers and posted time, and each file's `<title>`, session ID, and three timestamps give any indexer what it needs.
 
 ## When to use it
 
@@ -159,7 +159,7 @@ The pattern uses four CSS variables: `--bg`, `--ink`, `--accent`, `--toast`. Def
 
 ## How it works under the hood
 
-Each `<textarea class="note" data-q="LABEL">` registers that section's input. The export script walks every non-empty textarea, uses `data-q` as the section label or JSON key, and emits one of three formats. The buttons are wired with `addEventListener` — no framework, no build step. Checkbox state, toggle state, and textarea contents are written to `localStorage` keyed by file slug, and rehydrated on every page load.
+Each `<textarea class="note" data-q="LABEL">` registers that section's input. The export script walks every non-empty textarea, uses `data-q` as the section label or JSON key, and emits one of three formats. The buttons are wired with `addEventListener` — no framework, no build step. Checkbox state, toggle state, and textarea contents are never stored by the page. POST sends them (or downloads them as `<slug>-answers.md`); whatever listens writes that file and runs `scripts/fr-hydrate.sh <slug>-answers.md <slug>.html`, which rewrites one `<script id="fr-state" type="application/json">` block. On load, `restore()` renders that block and nothing else.
 
 ## License
 

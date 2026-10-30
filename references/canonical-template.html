@@ -1,10 +1,10 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
-<!-- field-report-template v3.1.2 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
+<!-- field-report-template v4.0.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="field-report-version" content="3.1.2">
+<meta name="field-report-version" content="4.0.0">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -239,10 +239,11 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     <span class="ms"><b>Opened</b> <span id="openedAt">now</span></span>
     <span class="ms">{REPORT_TYPE_PLACEHOLDER}</span>
     <span class="ms" id="presence" title="v2.3.0 agent wire: read from window.lavish"><b>Agent</b> <span id="presenceText">checking…</span></span>
+    <span class="ms" id="diskState" title="v4.0.0: answers live on disk; POST is the only save"><b>Answers</b> <span id="diskText">unsaved until POST</span></span>
   </div>
   <!-- CHANGELOG: on patch/reopen, prepend one row here, newest first:
        <div class="ml"><span class="mld">MM-DD HH:MM</span><span>what changed · terse</span></div>
-       Leave empty on fresh reports (auto-hides). Keep "Patched {date}" in the status line above — the stale-stamp guard reads it. -->
+       Leave empty on fresh reports (auto-hides). Keep "Patched {date}" in the status line above. -->
   <div class="meta-log">
     <div class="mlhead">Changelog — newest first</div>
     {CHANGELOG_PLACEHOLDER}
@@ -346,14 +347,29 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
 </div>
 <div id="toast" class="toast">Copied to clipboard</div>
 
+<!-- Disk state (v4.0.0): the operator's answers as they stand on disk, baked in by scripts/fr-hydrate.sh
+     from <slug>-answers.md. Ship it as {} when you render; never hand-edit it; re-run fr-hydrate.sh after any re-render. -->
+<script id="fr-state" type="application/json">{}</script>
+
 <script>
 (function(){
   const docTitle="{REPORT_TITLE_PLACEHOLDER}";
   const fileSlug="{FILE_SLUG_PLACEHOLDER}";
   const sessionId="{SESSION_ID_PLACEHOLDER}";
   const reportPath="{REPORT_PATH_PLACEHOLDER}"; // absolute path on disk; the agent wire and COPY payload name it
-  const storeKey=fileSlug;
-  const stampKey="posted_"+location.pathname;
+
+  // Disk state (v4.0.0). The answers live in <slug>-answers.md on disk; scripts/fr-hydrate.sh bakes
+  // them into the #fr-state block and this page only renders them. Nothing is saved in the browser:
+  // Lavish serves the page in an iframe sandboxed without allow-same-origin, where localStorage
+  // throws, so a browser store silently drops every answer on reload. POST is the only save.
+  function readState(){let d=null;try{const el=document.getElementById("fr-state");d=JSON.parse((el&&el.textContent)||"{}")}catch(e){console.error("fr-state unreadable:",e)}return (d&&typeof d==="object"&&!Array.isArray(d))?d:{}}
+  const diskState=readState();
+  function fmtTs(d){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Regina",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d).replace(",","")}
+  // The Answers cell says where the answers are right now: on disk (hydrated), or unsaved in this tab.
+  function diskLine(text,title){const t=document.getElementById("diskText");if(!t)return;t.textContent=text;if(title)t.parentElement.title=title}
+  function diskAt(){const v=Date.parse(diskState.posted||diskState.hydrated||"");return isNaN(v)?null:new Date(v)}
+  let dirty=false;
+  function markDirty(){if(dirty)return;dirty=true;diskLine("unsaved · press POST","edits in this tab are not on disk until POST; a reload shows only what is on disk")}
 
   // Live "Opened" timestamp — proves the report isn't stale just because the doc timestamp is from generation time
   (function(){
@@ -364,22 +380,16 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     el.textContent=fmt.format(d).replace(",","")+" CST";
   })();
 
-  // Light/Dark mode toggle — default dark, persisted per report
+  // Light/Dark mode toggle — default dark, this tab only (no browser storage; see Disk state)
   (function(){
-    const modeKey=storeKey+"-mode";
     const btn=document.getElementById("modeBtn");
     function applyMode(m){
       document.body.classList.toggle("light", m==="light");
       if(btn) btn.textContent = m==="light" ? "→ Dark" : "→ Light";
     }
-    let mode;
-    try{mode=localStorage.getItem(modeKey)}catch(e){}
-    if(!mode) mode="dark";
-    applyMode(mode);
+    applyMode("dark");
     if(btn) btn.addEventListener("click",()=>{
-      mode = document.body.classList.contains("light") ? "dark" : "light";
-      applyMode(mode);
-      try{localStorage.setItem(modeKey,mode)}catch(e){}
+      applyMode(document.body.classList.contains("light") ? "dark" : "light");
     });
   })();
 
@@ -398,7 +408,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         const single=!group.classList.contains("multi");
         if(single) group.querySelectorAll(".toggle").forEach(x=>x.classList.remove("active"));
         t.classList.toggle("active");
-        saveToggle(group);
+        markDirty();
       });
     });
   });
@@ -410,7 +420,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         e.preventDefault();
         t.value=t.placeholder;
         t.select();
-        saveNote(t);
+        markDirty();
       }
     });
   });
@@ -428,13 +438,12 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
   }
   document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{
     cb.addEventListener("change",()=>{
-      // Write storage NOW (a hidden tab never runs requestAnimationFrame, which used to eat the save);
-      // only the progress repaint is deferred so the visual toggle paints first.
+      // Only the progress repaint is deferred so the visual toggle paints first.
       // Origin: 2026-05-17 freeze incident in execution-plan report (layout-shift + sync DOM writes felt like a freeze).
       try{
-        const section=cb.closest("section.s"), id=cb.dataset.cb;
+        const section=cb.closest("section.s");
         if(section) section.classList.toggle("done", cb.checked);
-        saveKeys({["check__"+id]:cb.checked?"1":"0",["done__"+id]:cb.checked?new Date().toISOString():null,["reopened__"+id]:null});
+        markDirty();
         markReopened(cb,false);
         requestAnimationFrame(updateProgress);
       }catch(err){console.error("check handler error:",err)}
@@ -442,75 +451,43 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
   });
   updateProgress();
 
-  // Persistence (v3.1.2). The stored object is shared by every window on this origin, so a tab
-  // only ever writes the keys IT changed, merged into what is stored right now. It never
-  // rewrites the whole object from its own DOM: a stale tab used to wipe boxes another tab had
-  // checked. Keys: <q> answers/toggles, check__<id> "1"/"0", done__<id> ISO done-time,
-  // reopened__<id> the data-reopen value that opened it.
-  function readStore(){let d=null;try{d=JSON.parse(localStorage.getItem(storeKey)||"{}")}catch(e){}return (d&&typeof d==="object")?d:{}}
-  function saveKeys(changes){
-    const data=readStore();
-    Object.keys(changes).forEach(k=>{if(changes[k]===null) delete data[k]; else data[k]=changes[k]});
-    try{localStorage.setItem(storeKey,JSON.stringify(data))}catch(e){}
-  }
-  function saveNote(t){if(t.dataset.q) saveKeys({[t.dataset.q]:t.value})}
-  function saveToggle(g){if(g.dataset.q) saveKeys({[g.dataset.q]:[...g.querySelectorAll(".toggle.active")].map(x=>x.textContent.trim()).join(",")})}
-  // Agent-controlled reopen: <section data-reopen="<ISO time>"> unchecks on load only a box whose stored
-  // done-time is earlier than that value (or has none). Sections without the attribute never lose state.
+  // Restore (v4.0.0) reads #fr-state only. Shape, written by scripts/fr-hydrate.sh:
+  //   {"v":1,"slug","source","hydrated","posted","done":[<section ids>],"answers":{<data-q>:<text>}}
+  // A toggle answer is its active labels joined by ", " (the gather() export format).
+  // Agent-controlled reopen: <section data-reopen="<ISO time>"> unchecks on load a done box whose answers
+  // were posted before that time (or carry no time). Sections without the attribute never lose state.
   function markReopened(cb,on){
     const label=cb.closest("label"); if(!label) return;
     let n=label.querySelector(".reopened");
     if(on && !n){n=document.createElement("span");n.className="reopened";n.textContent="REOPENED";n.title="the agent reopened this section";n.style.cssText="color:var(--amber);font-weight:700;letter-spacing:.06em;margin-right:10px";label.insertBefore(n,label.firstChild)}
     else if(!on && n){n.remove()}
   }
-  function applyStored(data,live){
-    document.querySelectorAll("textarea.note").forEach(t=>{const k=t.dataset.q;if(k && data[k]!==undefined && t.value!==data[k] && !(live && document.activeElement===t)) t.value=data[k]});
-    document.querySelectorAll(".toggles[data-q]").forEach(g=>{const k=g.dataset.q;if(data[k]===undefined) return;const wanted=data[k]?data[k].split(","):[];g.querySelectorAll(".toggle").forEach(t=>t.classList.toggle("active",wanted.includes(t.textContent.trim())))});
-    const reopen={};
+  function applyState(state){
+    const answers=(state.answers&&typeof state.answers==="object")?state.answers:{};
+    const done=new Set(Array.isArray(state.done)?state.done.map(String):[]);
+    const posted=Date.parse(state.posted||"");
+    // An unanswered box shows its authored text, never a value the browser kept across a reload.
+    document.querySelectorAll("textarea.note").forEach(t=>{const k=t.dataset.q;t.value=(k && typeof answers[k]==="string")?answers[k]:t.defaultValue});
+    document.querySelectorAll(".toggles[data-q]").forEach(g=>{const v=answers[g.dataset.q];if(typeof v!=="string") return;const wanted=v?v.split(", "):[];g.querySelectorAll(".toggle").forEach(t=>{const x=t.textContent.trim();t.classList.toggle("active",x===v||wanted.includes(x))})});
     document.querySelectorAll(".check input[type=checkbox]").forEach(cb=>{
-      const id=cb.dataset.cb,k="check__"+id,section=cb.closest("section.s");
-      let on=data[k]==="1";
+      const id=cb.dataset.cb,section=cb.closest("section.s");
+      let on=done.has(id),reopened=false;
       const at=section && section.dataset.reopen;
-      if(on && at){
-        const ra=Date.parse(at),da=Date.parse(data["done__"+id]||"");
-        if(!isNaN(ra) && (isNaN(da) || da<ra)){on=false;reopen[k]="0";reopen["done__"+id]=null;reopen["reopened__"+id]=at}
-      }
-      if(data[k]!==undefined){cb.checked=on;if(section) section.classList.toggle("done",on)}
-      markReopened(cb,!!at && !on && (reopen["reopened__"+id]===at || data["reopened__"+id]===at));
+      if(on && at){const ra=Date.parse(at);if(!isNaN(ra) && (isNaN(posted) || posted<ra)){on=false;reopened=true}}
+      cb.checked=on;if(section) section.classList.toggle("done",on);
+      markReopened(cb,reopened);
     });
-    if(Object.keys(reopen).length) saveKeys(reopen);
     updateProgress();
   }
-  function restore(){applyStored(readStore(),false)}
+  function restore(){applyState(diskState)}
   restore();
-  document.querySelectorAll("textarea.note").forEach(t=>t.addEventListener("input",()=>saveNote(t)));
-  // A second window (lavish opens one, an agent may open another) stays in step live.
-  window.addEventListener("storage",e=>{if(e.key===null || e.key===storeKey) applyStored(readStore(),true)});
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden) applyStored(readStore(),true)});
+  document.querySelectorAll("textarea.note").forEach(t=>t.addEventListener("input",markDirty));
+  (function(){const at=diskAt();if(at) diskLine("on disk "+fmtTs(at)+" CST","answers baked in from "+(diskState.source||"<slug>-answers.md")+"; every reload shows them");else diskLine("unsaved until POST","nothing on disk for this report yet; POST is the only save")})();
 
-  // POSTED stamp
-  function fmtTs(d){return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Regina",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(d).replace(",","")}
+  // POSTED stamp: slams in this tab on POST/export; on load it shows the posted time from disk.
   function showStamp(ts, animate){const el=document.getElementById("postedStamp");el.querySelector(".ts").textContent=ts;if(animate){el.classList.remove("show");el.classList.add("slam");el.classList.add("show");setTimeout(()=>el.classList.remove("slam"), 500)} else {el.classList.add("show")}}
-  function stamp(){const ts=fmtTs(new Date());try{localStorage.setItem(stampKey, ts)}catch(e){};showStamp(ts, true)}
-  // Stale-stamp guard: if doc was patched after the export, the prior POSTED is stale.
-  try{
-    const prior=localStorage.getItem(stampKey);
-    if(prior){
-      const rowTime=(document.querySelector(".row-time")||{}).textContent||"";
-      const m=rowTime.match(/Patched\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})/);
-      let stale=false;
-      if(m){
-        const patchedTime=new Date(m[1].replace(" ","T")+":00").getTime();
-        const postedTime=new Date(prior.replace(" ","T")+":00").getTime();
-        if(!isNaN(patchedTime) && !isNaN(postedTime) && patchedTime>postedTime) stale=true;
-      }
-      if(stale){
-        localStorage.removeItem(stampKey);
-      } else {
-        showStamp(prior, false);
-      }
-    }
-  }catch(e){}
+  function stamp(){showStamp(fmtTs(new Date()), true)}
+  if(diskState.posted && diskAt()) showStamp(fmtTs(diskAt()), false);
 
   function gather(){
     const out=[`# ${docTitle}`,`_Exported ${new Date().toISOString()}_`,"",`session-id: ${sessionId}`,""];
@@ -560,10 +537,11 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
   const wire={
     live(){return !!(window.lavish && typeof window.lavish.queuePrompt==="function")},
     pathHint(){return (reportPath && !/PLACEHOLDER/.test(reportPath)) ? reportPath : decodeURIComponent(location.pathname)},
-    lastKey:"fr:lastpost:"+fileSlug,
+    // "Changed since last POST" diffs against what the page loaded from disk, then against this tab's last POST.
+    baseline:{},
     snapshot(){const o={};document.querySelectorAll("section.s").forEach(sec=>{const id=sec.dataset.section;const parts=[];sec.querySelectorAll(".toggles[data-q]").forEach(g=>{const a=[...g.querySelectorAll(".toggle.active")].map(x=>x.textContent.trim());if(a.length)parts.push(g.dataset.q+"="+a.join(","))});sec.querySelectorAll("textarea.note").forEach(t=>{const v=(t.value||"").trim();if(v)parts.push(t.dataset.q+"="+v)});if(sec.classList.contains("done"))parts.push("done");o[id]=parts.join("\n")});return o},
     batch(){
-      let prev={};try{prev=JSON.parse(localStorage.getItem(this.lastKey)||"{}")}catch(e){}
+      const prev=this.baseline;
       const now=this.snapshot();
       const items=Object.keys(now).map(id=>({id,changed:now[id]!==(prev[id]||""),answered:!!now[id],text:now[id]}));
       return {slug:fileSlug,session:sessionId,path:this.pathHint(),changed:items.filter(i=>i.changed).map(i=>i.id),items};
@@ -574,7 +552,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
       return lines.join("\n");
     },
     instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
-    remember(b){const o={};b.items.forEach(i=>o[i.id]=i.text);try{localStorage.setItem(this.lastKey,JSON.stringify(o))}catch(e){}},
+    remember(b,how){const o={};b.items.forEach(i=>o[i.id]=i.text);this.baseline=o;dirty=false;diskLine(how+" "+fmtTs(new Date())+" CST","answers reach disk when your supervisor's listener harvests them (or the receipt is filed); reload then shows them")},
     // Receipt before relay (2026-10-08), narrowed in v3.1.1: when nobody is listening,
     // POST writes the answers to disk as a download named <slug>-answers.md, the marker
     // every scanner already honours. When an agent is listening, harvest writes it.
@@ -592,32 +570,18 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         // the harvest writes the receipt beside the report, so no <slug>-answers.md download.
         window.lavish.queuePrompt(this.prompt(b),{tag:"field-report",text:`POST ${b.slug} · ${b.changed.length} changed`,queueKey:"field-report:"+b.slug,data:{slug:b.slug,session:b.session,path:b.path,changed:b.changed,items:b.items.map(i=>({id:i.id,changed:i.changed,answered:i.answered}))}});
         if(typeof window.lavish.sendQueuedPrompts==="function"){
-          try{await window.lavish.sendQueuedPrompts();this.remember(b);toast("Sent to the agent");stamp();return}
-          catch(e){this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return}
+          try{await window.lavish.sendQueuedPrompts();this.remember(b,"sent");toast("Sent to the agent");stamp();return}
+          catch(e){this.remember(b,"queued");toast("Queued for the agent · press Send to Agent");stamp();return}
         }
-        this.remember(b);toast("Queued for the agent · press Send to Agent");stamp();return;
+        this.remember(b,"queued");toast("Queued for the agent · press Send to Agent");stamp();return;
       }
       try{this.receipt(b)}catch(e){toast("Receipt download failed; answers still in this page")}
-      if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b);toast("Receipt saved to Downloads · copied with attach instructions");stamp()}else{toast("Receipt saved to Downloads · copy failed")}
-    },
-    // ANSWERED stamp: when the page is served next to its own receipt (any static
-    // server), show it across the top. file:// pages skip this quietly.
-    async answeredStamp(){
-      if(location.protocol!=="http:"&&location.protocol!=="https:")return;
-      try{
-        const r=await fetch(fileSlug+"-answers.md",{method:"GET",cache:"no-store"});
-        if(!r.ok)return;
-        const txt=await r.text();const m=txt.match(/posted=([^ >]+)/);const when=m?m[1].slice(0,16).replace("T"," "):"";
-        const h1=document.querySelector("h1");if(!h1)return;
-        const tag=document.createElement("div");tag.id="answeredStamp";
-        tag.style.cssText="margin:6px 0 10px;padding:10px 14px;border:3px solid var(--green,#3f8a4a);border-radius:10px;font:800 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--green,#3f8a4a)";
-        tag.textContent="ANSWERED"+(when?" · receipt "+when+" UTC":"")+" · "+fileSlug+"-answers.md";
-        h1.insertAdjacentElement("afterend",tag);
-      }catch(e){}
+      if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b,"receipt downloaded");toast("Receipt saved to Downloads · copied with attach instructions");stamp()}else{toast("Receipt saved to Downloads · copy failed")}
     },
     presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (one press)":"POST answers: nobody listening, copies the batch with attach instructions"}
   };
-  wire.presence();wire.answeredStamp();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
+  wire.baseline=wire.snapshot();
+  wire.presence();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
   document.getElementById("postBtn").addEventListener("click",()=>wire.post());
   document.getElementById("copyMdBtn").addEventListener("click",async()=>{if(await copyText(gather())){toast("Copied markdown");stamp()}else{toast("Copy failed")}});
   document.getElementById("downloadMdBtn").addEventListener("click",()=>{const md=gather();const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fileSlug+".md";a.setAttribute("data-lavish-action","download");document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Downloaded "+fileSlug+".md");stamp()});
@@ -648,7 +612,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     wrap.appendChild(btn);
   });
 
-  // Floating notes (v2.2.0): mirror of the open-notes textarea, same localStorage slot.
+  // Floating notes (v2.2.0): mirror of the open-notes textarea. It holds no state of its own.
   (function(){try{
     var panel=document.getElementById('floatNotes'); if(!panel) return;
     var fta=document.getElementById('floatNotesTa');
@@ -659,12 +623,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     fta.value=src.value;
     fta.addEventListener('input',function(){push(fta,src)});
     src.addEventListener('input',function(){if(!syncing)fta.value=src.value});
-    window.addEventListener('storage',function(){if(document.activeElement!==fta)fta.value=src.value});
-    var k='fieldreport.floatNotes.collapsed';
-    try{if(localStorage.getItem(k)==='1')panel.classList.add('collapsed')}catch(e){}
-    panel.querySelector('.fn-head').addEventListener('click',function(){panel.classList.toggle('collapsed');try{localStorage.setItem(k,panel.classList.contains('collapsed')?'1':'0')}catch(e){}});
-    // re-sync after the template's own restore-from-localStorage runs
-    setTimeout(function(){fta.value=src.value},50);
+    panel.querySelector('.fn-head').addEventListener('click',function(){panel.classList.toggle('collapsed')});
   }catch(e){}})();
 })();
 </script>

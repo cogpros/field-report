@@ -30,7 +30,7 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 
 ### 6. POSTED Stamp Animation
 **Status:** Canonical
-**What it does:** Large "POSTED" watermark that slams in when "Copy markdown" or "Copy as Claude prompt" is clicked. Shows the timestamp. Persists to localStorage.
+**What it does:** Large "POSTED" watermark that slams in when POST, "Copy markdown" or "Copy as Claude prompt" is clicked. Shows the timestamp. Since v4.0.0 the slam lives in this tab only; on load the stamp shows the posted time from the disk state (`fr-state.posted`), so it appears exactly when the answers are on disk. The v3 localStorage stamp and its stale-stamp guard are gone.
 **Notes:** Critical UX signal that the report was captured — when the user reopens later, the stamp tells them this one is done.
 
 ### 7. Copy Buttons + Toast Feedback
@@ -62,14 +62,13 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 
 ### 13. Light/Dark Mode Toggle (Top-Right)
 **Status:** Canonical (added for public ship 2026-05-17)
-**What it does:** Small button fixed top-right (`right:160px` to clear the progress label). Toggles `body.light` class which swaps the entire CSS variable palette. Default is dark. Button text is `→ Light` (dark mode) or `→ Dark` (light mode). Persists to localStorage per-report.
+**What it does:** Small button fixed top-right (`right:160px` to clear the progress label). Toggles `body.light` class which swaps the entire CSS variable palette. Default is dark. Button text is `→ Light` (dark mode) or `→ Dark` (light mode). This tab only since v4.0.0 (the page stores nothing in the browser).
 **Notes:** Default dark suits long sessions; the toggle is mandatory because some adopters strongly prefer light. Light palette mirrors the dark variables; headings need explicit `body.light h1/h2/h3` rules where the dark theme used hardcoded light values.
 
-### 14. localStorage Persistence
+### 14. Disk state + restore (v4.0.0; replaces localStorage persistence)
 **Status:** Canonical
-**What it does:** Toggles, textareas, checkbox state, and mode preference are saved to localStorage and restored on page load.
-**v3.1.2 durability:** saves are per key, merged into the stored object (a stale or second window cannot wipe a box another tab checked); the `storage` event keeps other open windows live; each box records a done-time (`done__<id>`); a re-render of the same slug keeps every stored answer and box, including ones the agent pre-filled over or sections the new render dropped. **Agent reopen:** `<section class="s" data-reopen="<ISO time>">` unchecks on load only a box whose done-time is earlier than that value (or missing) and shows a REOPENED note; sections without the attribute never lose state.
-**Why:** Operator, 2026-10-29: "every box i have checked done, needs to remain done when i come back, unless your work opens it back up." Observed: progress fell from 3/15 to 1/15 after a re-render. Test: `node tests/test-persist.js`.
+**What it does:** The answers live in `<slug>-answers.md` on disk. `scripts/fr-hydrate.sh <answers.md> <html>` bakes them into the page's `<script id="fr-state" type="application/json">` block by atomic rename; `restore()` reads that block and nothing else. Toggles, textareas and done boxes render from it; an unanswered textarea shows its authored text. The `Answers` meta cell reads `on disk <time>` once hydrated and `unsaved · press POST` after any edit. **Agent reopen:** `<section class="s" data-reopen="<ISO time>">` unchecks on load a done box whose answers were posted before that time (`fr-state.posted`) and shows a REOPENED note; sections without the attribute never lose state.
+**Why:** Operator, 2026-10-29: "every box i have checked done, needs to remain done when i come back, unless your work opens it back up." The v3.1.2 fix (per-key localStorage merge, `storage` event sync) could not deliver that: Lavish serves the page in an iframe sandboxed without `allow-same-origin` (lavish-axi 0.1.80 `dist/cli.mjs:12024`), where `localStorage` throws `SecurityError`, and every save was swallowed by a `try/catch`. Reloads under Lavish were empty by construction. Decision D-2026-10-30-9: the page is not the record. Test: `node tests/test-disk-state.js` (forced reds first; jsdom with a throwing storage getter; headless Chrome under Lavish's exact sandbox string).
 
 ### 15. Three-Timestamp Header (Compiled · Patched · Opened)
 **Status:** Canonical (added 2026-05-17 after a stale-timestamp incident)
@@ -78,13 +77,13 @@ Last updated: 2026-09-17 (v2.3.0) · Originally audited from 13 field reports ov
 
 ### 16. Floating Notes Panel
 **Status:** Canonical (added 2026-09-07, template v2.2.0)
-**What it does:** A small fixed panel (`#floatNotes`) anchored bottom-right that follows the reader down the page. Contains a header (click to collapse/expand, state persisted to localStorage) and a textarea mirroring the report's open-notes textarea — typing in either updates the other in real time, and both persist through the same localStorage slot the existing save/restore path already uses (the mirror textarea has no `data-q` on purpose; it pushes into the real textarea and dispatches `input` so the existing save path fires).
+**What it does:** A small fixed panel (`#floatNotes`) anchored bottom-right that follows the reader down the page. Contains a header (click to collapse/expand, this tab only) and a textarea mirroring the report's open-notes textarea — typing in either updates the other in real time. The mirror holds no state of its own (no `data-q` on purpose; it pushes into the real textarea and dispatches `input`, so the export and the unsaved marker see it).
 **Origin:** user request, 2026-09-07: "is there a way to have the open notes section as a floating section that follows me the whole way down?"
 **v2.3.0 note:** hidden while an agent is listening (lavish present); lavish's Conversation panel takes its place. Operator, 2026-09-17, annotating the panel inside lavish: "this notes section is no longer needed". Still shown on direct opens.
 
 ### 17. Agent wire (POST + presence)
 **Status:** Canonical (added 2026-09-17, template v2.3.0)
-**What it does:** A `POST` button (first in the button bar) and an `Agent` presence cell in the meta-status row. The page reads whether `window.lavish` exists, i.e. whether lavish-axi served it and an agent is polling. Listening: POST queues one prompt carrying the full markdown export plus a batch header (sections answered, sections changed since last POST) via `window.lavish.queuePrompt`, and the user presses lavish's Send to Agent. Nobody listening (file://, static server, tablet): POST copies the identical batch to the clipboard with an attach instruction (`npx -y lavish-axi@0.1.80 <path>` then `poll`; one pin per machine), so pasting it into any agent both delivers the answers and tells that agent how to start listening. "Copy as Claude prompt" carries the same instruction. Changed-since-last-POST is tracked per section in localStorage (`fr:lastpost:<slug>`).
+**What it does:** A `POST` button (first in the button bar) and an `Agent` presence cell in the meta-status row. The page reads whether `window.lavish` exists, i.e. whether lavish-axi served it and an agent is polling. Listening: POST queues one prompt carrying the full markdown export plus a batch header (sections answered, sections changed since last POST) via `window.lavish.queuePrompt`, and the user presses lavish's Send to Agent. Nobody listening (file://, static server, tablet): POST copies the identical batch to the clipboard with an attach instruction (`npx -y lavish-axi@0.1.80 <path>` then `poll`; one pin per machine), so pasting it into any agent both delivers the answers and tells that agent how to start listening. "Copy as Claude prompt" carries the same instruction. Changed-since-last-POST diffs each section against what the page loaded from disk, then against this tab's last POST (in memory; v4.0.0).
 **Why:** NOW and LATER are a fact the page reads, never a mode the user picks. Origin: operator, 2026-09-17: "i want a choice about whether to run the now version or the later version… and the later version needs to have a copy command to put back into an agent to turn it into the now version."
 **Button bar while listening:** only POST is shown; Copy markdown, Download .md and Copy as Claude prompt are the LATER path and reappear when nobody is listening. POST reads POST and stays visible without hover (v2.4.1). Operator, 2026-09-17, via lavish: "remove all buttons but post if it works. the other buttons are only needed if a field report stays for later." The floating notes panel hides on the same condition.
 **Transport:** lavish-axi (github.com/kunchenguid/lavish-axi). Field-report ships no server. lavish stays optional: without it the page behaves exactly as v2.2.0 plus the attach instruction.
@@ -115,7 +114,7 @@ The button bar's collapse-to-dots / expand-on-hover behavior is part of feature 
 3. Tab-to-fill on textareas
 4. POSTED stamp on copy (UX signal)
 5. Session-ID embedded in three places (multi-session continuity)
-6. localStorage persistence (no server dependency)
+6. Answers on disk, page as renderer (`fr-state` + `fr-hydrate.sh`; no browser storage)
 7. Portable template (no hardcoded user paths in the template body)
 
 ## Clipboard sandbox fallback (v2.1.3, 2026-07-30)
@@ -141,10 +140,11 @@ which was never the broken one.
 **Standing lesson for the agent:** the local file is the only operable copy. Mirrors were
 dropped on 2026-08-02 (see SKILL.md step 4b). State never syncs between origins.
 
-**Residual limitation:** the fallback fixes copy. It does NOT fix localStorage persistence in a
-sandboxed frame — checkboxes and notes will not survive a reload there. The fallback stays
-because `file://` origins hit the same clipboard restriction.
+**Residual limitation (closed in v4.0.0):** the fallback fixed copy but not persistence in a
+sandboxed frame. That limitation turned out to cover Lavish itself, which sandboxes every
+report without same-origin; v4.0.0 removed browser storage and moved the answers to disk
+(feature 14). The fallback stays because `file://` origins hit the same clipboard restriction.
 
-### 18. Receipt before relay + ANSWERED stamp (v2.4.0)
+### 18. Receipt before relay (v2.4.0; ANSWERED fetch removed in v4.0.0)
 
-POST downloads `<slug>-answers.md` (receipt header line + full export) before relaying to lavish or the clipboard. On load from an http origin the page fetches its own `<slug>-answers.md`; if present, an ANSWERED stamp with the receipt time is inserted under the `<h1>`. file:// pages skip the stamp quietly. Added 2026-10-08 after the operator found that POST had never left a mark on disk.
+When nobody is listening, POST downloads `<slug>-answers.md` (receipt header line + full export) before copying to the clipboard; when an agent listens, the supervisor's harvest writes the same file. Added 2026-10-08 after the operator found that POST had never left a mark on disk. Until v4.0.0 the page also fetched its own `<slug>-answers.md` to show an ANSWERED stamp; from Lavish's opaque sandbox origin that fetch is cross-origin and Lavish sends no CORS header, so it always failed silently. The answered state now arrives through hydrate: the POSTED stamp with the posted time and `Answers: on disk`.

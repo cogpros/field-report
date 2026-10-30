@@ -10,7 +10,7 @@ run(){ printf '{"tool_input":{"file_path":"%s"}}' "$1" | "$HERE/scripts/field-re
 fail=0; chk(){ if [ "$2" != "$3" ]; then echo "FAIL $1: got $2 want $3"; fail=1; else echo "ok   $1 (exit $2)"; fi; }
 cp "$T" "$TMP/dash/reports/fresh.html";               chk fresh-passes        "$(run "$TMP/dash/reports/fresh.html")" 0
 sed '/field-report-version/d' "$T" > "$TMP/dash/reports/nostamp.html"; chk missing-stamp-fails "$(run "$TMP/dash/reports/nostamp.html")" 2
-sed 's/content="3.1.2"/content="2.1.2"/' "$T" > "$TMP/dash/reports/old.html"; chk old-stamp-fails "$(run "$TMP/dash/reports/old.html")" 2
+sed 's/content="4.0.0"/content="3.1.2"/' "$T" > "$TMP/dash/reports/old.html"; chk old-stamp-fails "$(run "$TMP/dash/reports/old.html")" 2
 # done box must be the LAST element of its section: old (top) layout fails, template layout passes
 python3 - "$T" "$TMP/dash/reports/top.html" <<'PY'
 import re, sys
@@ -36,6 +36,13 @@ sed 's|</body>|<pre>npx -y lavish-axi x.html</pre></body>|' "$T" > "$R/unpinned.
 chk unpinned-lavish-fails "$(run "$R/unpinned.html")" 2
 sed 's|</body>|<pre>npx -y lavish-axi@0.1.76 x.html</pre></body>|' "$T" > "$R/pinbad.html"
 chk pin-mismatch-fails "$(run "$R/pinbad.html")" 2
+# Disk state (v4.0.0): the fr-state block is required and browser storage is rejected
+sed '/<script id="fr-state"/d' "$T" > "$R/nostate.html"
+chk missing-fr-state-fails "$(run "$R/nostate.html")" 2
+sed 's|function restore(){|function restore(){try{localStorage.setItem("k","v")}catch(e){}|' "$T" > "$R/storage.html"
+chk browser-storage-fails "$(run "$R/storage.html")" 2
+sed 's|</body>|<script>sessionStorage.getItem("seed")</script></body>|' "$T" > "$R/seed.html"
+chk injected-storage-seed-fails "$(run "$R/seed.html")" 2
 # the placeholder-stripped banner path and the shipped example still pass
 sed 's|{TOMORROW_BANNER_PLACEHOLDER}||' "$T" > "$R/empty-banner.html"
 chk empty-banner-passes "$(run "$R/empty-banner.html")" 0
@@ -57,6 +64,11 @@ has skill-never-static       'NEVER the delivery' "$S"
 has skill-working-spin       'Working spin' "$S"
 has skill-poll-owning        'Poll lives in the owning session' "$S"
 has readme-pfr-vs-pulse      '^## PFR vs Daily Pulse' "$RD"
+has skill-answers-on-disk    'answers live on disk' "$S"
+has skill-harvest-hydrate    'harvest.*then.*hydrate' "$S"
+has skill-never-browser-truth 'never treat browser storage as' "$S"
+has skill-never-stop-lavish  'never stop the Lavish server' "$S"
+lacks skill-no-storage-promise 'persists to localStorage|localStorage persistence' "$S"
 lacks skill-no-open-fallback '^   open -g "\$\{REPORTS_DIR\}' "$S"
 lacks skill-no-without-lavish 'otherwise open the file' "$S"
 exit $fail

@@ -1,5 +1,5 @@
 #!/bin/bash
-# field-report-guard.sh — PostToolUse hook (matcher: Write|Edit). Template stamp unchanged (3.1.2).
+# field-report-guard.sh — PostToolUse hook (matcher: Write|Edit). Template stamp 4.0.0.
 # Canonical copy lives in the field-report skill (scripts/); install over
 # ~/1HUGR/bin/field-report-guard.sh. Differences from the pre-3.0.0 guard:
 #   * a report must carry <meta name="field-report-version" content="X">
@@ -9,6 +9,10 @@
 #     Pulse / wake-up plan / morning report, carries a filled #tomorrowBell banner,
 #     points at a static :8989 url, or names an unpinned / mismatched lavish-axi is # commit-leak-scan: allow
 #     rejected. HTML comments and <style> are ignored, so the template passes.
+#   * disk state (4.0.0): a report must carry the <script id="fr-state"> block that
+#     fr-hydrate.sh writes, and its scripts must not touch browser storage. Lavish
+#     sandboxes the page without allow-same-origin, so storage throws and every
+#     answer kept there is lost on reload; the answers file on disk is the record.
 # Reads the PostToolUse JSON on stdin, extracts file_path. Env overrides (tests):
 #   FR_REPORTS_DIR, FR_TEMPLATE.
 
@@ -42,7 +46,7 @@ case "$FP" in
 esac
 
 missing=()
-for marker in "openedAt" "mode-toggle" 'data-cb' "copyMdBtn" "downloadMdBtn" "claudeBtn"; do
+for marker in "openedAt" "mode-toggle" 'data-cb' "copyMdBtn" "downloadMdBtn" "claudeBtn" 'id="fr-state"'; do
   grep -q "$marker" "$FP" 2>/dev/null || missing+=("$marker")
 done
 
@@ -113,6 +117,11 @@ if pin:
     bad = sorted({v for v in re.findall(r"lavish-axi@([0-9][0-9.]*)", body) if v != pin})
     if bad:
         out.append("lavish-axi-pin-mismatch(%s; template pin is %s)" % (",".join(bad), pin))
+code = "\n".join(re.findall(r"<script\b(?![^>]*application/json)[^>]*>(.*?)</script>", body, flags=re.S | re.I))
+code = re.sub(r"/\*.*?\*/", "", code, flags=re.S)
+code = re.sub(r"(^|[^:\"'\\])//[^\n]*", r"\1", code)
+if re.search(r"localStorage|sessionStorage|indexedDB", code):
+    out.append("browser-storage-in-PFR(answers live on disk: fr-hydrate.sh writes #fr-state; Lavish's sandbox throws on storage)")
 print("\n".join(out))
 PY
 while IFS= read -r finding; do
