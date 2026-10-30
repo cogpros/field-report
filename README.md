@@ -1,4 +1,20 @@
-# field-report
+# field-report (PFR)
+
+**This skill is PFR only: the field report for decisions and walk-throughs.** It is delivered through Lavish (`lavish-axi`), never as a bare static HTML.
+
+## PFR vs Daily Pulse
+
+Two things, two paths. Do not cross them.
+
+| | PFR (this skill) | Daily Pulse |
+|---|---|---|
+| What | Decision / walk-through report with an answer box after every question | Morning plan and status pulse |
+| Trigger | `/field-report`, "field report", "PFR" | its own path (the `daily-pulse` generator, outside this repo) |
+| Built from | `references/canonical-template.html` | its own generator |
+| Delivered by | `lavish-axi` (pinned `0.1.80`), url is the Lavish session | its own path, also through Lavish |
+| "DO THIS TOMORROW" banner | empty, guard rejects it | belongs here |
+
+Never ask this skill for the Daily Pulse, the wake-up plan, or a morning report. Never use the Daily Pulse machinery to make a PFR. A PFR that is opened as `file://`, as a plain static url (for example `http://host:PORT/x.html`), or with a bare `open` has no listening agent: it does not count as delivered.
 
 > Your coding agent just asked you five things. You're typing answers into a Claude CLI prompt, into Discord, into a Telegram chat, and by question three you've lost which answer goes with which question. The agent has to re-correlate. Half the time it gets it wrong.
 
@@ -65,7 +81,7 @@ ln -s ~/Work/skills/field-report ~/.claude/skills/field-report
 
 Restart Claude Code. The skill is now available.
 
-**Invoke it manually.** When you want a decision doc, audit, brainstorm, or any multi-question response, tell Claude `use field-report for this` (or `run the field-report skill`). The agent reads the SKILL.md and follows the canonical template. The skill does not auto-fire on the work shape — see *Why manual invocation* below.
+**Invoke it manually.** When you want a decision doc, audit, brainstorm, or any multi-question response, tell Claude `/field-report`, "PFR", or `use field-report for this` (or `run the field-report skill`). The agent reads the SKILL.md and follows the canonical template. The skill does not auto-fire on the work shape — see *Why manual invocation* below.
 
 ## Why manual invocation (and not auto-trigger)
 
@@ -100,7 +116,7 @@ You can also pre-set the path via the `CLAUDE_REPORTS_DIR` environment variable,
 `references/example.html` is the worked example linked at the top of this README. Self-referential: the agent is asking the developer which Claude Code skills to install before scaffolding a new project. Field-report is option #1 on the list.
 
 ```bash
-open references/example.html
+open references/example.html   # demo only; a real PFR is served through lavish-axi
 ```
 
 [Live render via raw.githack →](https://raw.githack.com/cogpros/field-report/main/references/example.html)
@@ -155,11 +171,11 @@ Read `DESIGN.md` for the full why. Short version: I kept getting walls of HTML d
 
 ## Works with lavish-axi (v2.3.0)
 
-Field-report is the page. [lavish-axi](https://github.com/kunchenguid/lavish-axi) is an optional wire that lets a live agent receive your answers without a paste. Serve a report through it and the page shows `Agent listening`; press **POST**, then lavish's **Send to Agent**, and the agent blocked in `lavish-axi poll` gets the full export plus a list of which sections changed. Opened without lavish, the same POST button copies the same batch to the clipboard with an attach instruction, so you can paste it into any agent later and that agent knows how to start listening. Field-report ships no server, and everything still works with lavish absent.
+Field-report is the page. [lavish-axi](https://github.com/kunchenguid/lavish-axi) is the delivery: the skill requires it. A live agent receives your answers without a paste. Serve a report through it and the page shows `Agent listening`; press **POST**, then lavish's **Send to Agent**, and the agent blocked in `lavish-axi poll` gets the full export plus a list of which sections changed. If you open a report some other way, the POST button copies the batch to the clipboard with an attach instruction so a later agent can attach, but that is recovery, not delivery. Field-report ships no server.
 
-Two lavish settings to fix once in whatever launches your agent: `LAVISH_AXI_TELEMETRY=0` (it reports usage to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server up so a half-filled report's link never dies). Pin the version you tested.
+Two lavish settings to fix once in whatever launches your agent: `LAVISH_AXI_TELEMETRY=0` (it reports usage to its author by default) and `LAVISH_AXI_IDLE_TIMEOUT_MS=0` (keep the server up so a half-filled report's link never dies). Pin the version you tested. If the tailnet bind fails, serve the 127.0.0.1 url lavish gives you on the same port. A Working spin on the board clears only after the agent's `lavish-axi reply` exits 0, and the poll must run in the session that will act on your answers.
 
 ## Related tools
 
 - [checkpoint](https://github.com/cogpros/checkpoint), the display half to this skill's input half. Field-report captures your answers into the agent, checkpoint renders session state back out.
-- [lavish-axi](https://github.com/kunchenguid/lavish-axi), the optional wire between the page and a polling agent (see above).
+- [lavish-axi](https://github.com/kunchenguid/lavish-axi), the delivery wire between the page and a polling agent (see above).

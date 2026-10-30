@@ -159,7 +159,7 @@ textarea.note::placeholder{color:var(--brown);opacity:.45;font-style:italic}
   .totals{grid-template-columns:1fr}
   .toggle{font-size:11px;padding:5px 9px}
 }
-/* OPTIONAL "DO THIS TOMORROW" banner — one operator-chosen next action at the very top. Filled via {TOMORROW_BANNER_PLACEHOLDER}; nothing renders when the placeholder is left empty. */
+/* "DO THIS TOMORROW" banner — Daily Pulse only; a PFR leaves {TOMORROW_BANNER_PLACEHOLDER} empty and nothing renders. Skin unchanged. */
 @keyframes bellpulse{0%,100%{box-shadow:0 0 0 0 rgba(255,196,0,.7),0 0 22px rgba(255,120,0,.55)}50%{box-shadow:0 0 0 10px rgba(255,196,0,0),0 0 34px rgba(255,80,0,.85)}}
 @keyframes bellshake{0%,92%,100%{transform:rotate(0)}94%{transform:rotate(13deg)}96%{transform:rotate(-11deg)}98%{transform:rotate(7deg)}}
 #tomorrowBell{margin:14px 0 6px;padding:16px 20px;border-radius:14px;border:3px solid #ff7a00;background:linear-gradient(100deg,#fff2b0,#ffd36b 45%,#ffb14d);color:#5a2b00;font-weight:800;text-align:center;animation:bellpulse 1.6s ease-in-out infinite}
@@ -220,12 +220,12 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
 
 <button id="modeBtn" class="mode-toggle" title="Toggle light/dark mode">→ Light</button>
 
-<!-- OPTIONAL "DO THIS TOMORROW" banner — one operator-chosen next action; empty by default.
-     Fill with:
+<!-- "DO THIS TOMORROW" banner — DAILY PULSE ONLY. A PFR leaves {TOMORROW_BANNER_PLACEHOLDER} empty; the guard rejects a PFR that fills it.
+     (Daily Pulse markup, for reference:
      <div id="tomorrowBell">
        <span class="big"><span class="b">🔔</span> DO THIS TOMORROW <span class="b">🔔</span></span>
        <span class="sub"><b>ACTION TITLE</b> — what to do · ~how long · why it's the cheapest/most time-critical open item</span>
-     </div> -->
+     </div>) -->
 {TOMORROW_BANNER_PLACEHOLDER}
 
 <!-- OPTIONAL: Progress bar + label -->

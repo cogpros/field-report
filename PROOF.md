@@ -48,3 +48,12 @@ $ grep -rn 'lavish-axi@0\.1\.76' . --exclude-dir=.git | wc -l
        0
 ```
 (One prose mention of 0.1.76 remains in SKILL.md as the 'bumped from' history note.)
+
+## PFR-only hardening (identity, Lavish-only delivery)
+
+Template stamp is unchanged (3.1.2); only a comment about the Daily Pulse banner changed, so existing reports still pass the version check.
+
+```
+$ tests/test-guard.sh | grep -c '^ok'; echo exit=$?
+```
+Red cases (all exit 2 before the clean template is trusted): filled `#tomorrowBell`, Daily Pulse title, `daily-pulse-*` filename, static-server url, unpinned `lavish-axi`, mismatched pin (`0.1.76`). Green: fresh template, empty banner. Skill-text assertions cover the PFR trigger, Daily Pulse prohibition, mandatory Lavish, 127.0.0.1 fallback, Working-spin and owning-session poll notes, and the absence of an `open -g` fallback.
