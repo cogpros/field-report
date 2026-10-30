@@ -211,6 +211,23 @@ T("hydrate contract: refuses wrong slug and pre-4.0 HTML; idempotent; writes thr
   return [ok, `wrong-slug exit=${r1} pre-4.0 exit=${r2}${old ? "" : "(SKIP)"} rerun="${again.stdout.trim().slice(0, 40)}" unchanged=${same} symlink exit=${r3} target-updated=${viaLink}`];
 });
 
+// The v4.1.0 template (last release whose presence cell said "listening"), for the forced red.
+function prevTemplate() {
+  try { return execFileSync("git", ["-C", ROOT, "show", "28168f3:references/canonical-template.html"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); }
+  catch (e) { return null; }
+}
+
+T("presence cell says what the page can prove: Lavish wired / absent, never listening", async () => {
+  const stub = { queuePrompt() {}, async sendQueuedPrompts() {} };
+  const html = page(tpl);
+  const wired = $(openTab(html, { lavish: stub }), "#presenceText").textContent;
+  const absent = $(openTab(html), "#presenceText").textContent;
+  const prev = prevTemplate();
+  const red = prev ? $(openTab(page(prev), { lavish: stub }), "#presenceText").textContent : null;
+  const ok = wired === "Lavish: wired" && absent === "Lavish: absent" && !/listening/i.test(wired + absent) && (prev === null || /listening/.test(red));
+  return [ok, `wired="${wired}" absent="${absent}" v4.1.0-said="${red === null ? "SKIP(no git)" : red}"`];
+});
+
 T("real Chrome, Lavish's exact sandbox: storage throws, hydrated state renders", async () => {
   const chrome = process.env.CHROME_BIN || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   if (!fs.existsSync(chrome)) return [true, "SKIP(no Chrome at " + chrome + ")"];

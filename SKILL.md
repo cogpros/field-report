@@ -14,7 +14,7 @@ description: >
   morning report; those run on the separate Daily Pulse path. Do NOT auto-fire
   on description match. NOT for: Daily Pulse / wake-up plan / morning report,
   read-only audit logs with no user input, non-HTML outputs.
-version: 4.1.0
+version: 4.2.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -24,7 +24,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report (PFR) v4.1.0
+# Skill: field-report (PFR) v4.2.0
 
 ## Identity: this skill is PFR, and only PFR
 
@@ -88,21 +88,34 @@ After first run, the agent does not pick a default and does not ask again. The v
    # different version makes the shared server restart "for upgrade", which kills
    # every poll any agent has running. (Observed 3x in one weekend with one seat
    # unpinned.) 0.1.80 is the version this skill was tested against (bumped from 0.1.76 on 2026-10-28 alongside the v3.0.0 design freeze; Lavish's capture-phase click handler skips `[data-lavish-action]`, which the template now stamps).
-   npx -y lavish-axi@0.1.80 "${REPORTS_DIR}/<your-report-slug>.html" --no-open
-   open "<session url printed above>"             # ALWAYS open it in front, every serve
+   # fr-listen.sh calls `lavish-axi` by name: on this box that is the pinned shim
+   # (`npx -y lavish-axi@0.1.80`), so the one pin rides every open, poll and reply.
+   scripts/fr-listen.sh "${REPORTS_DIR}/<your-report-slug>.html" --open
+   # FIRST SERVE = this one command, run through this harness's tracked background
+   # facility (Claude Code: Bash run_in_background, never a foreground Bash call,
+   # which would block the turn on the poll). fr-listen.sh opens/reopens the
+   # session, probes the url (200), and then --open opens that proven url in the
+   # operator's browser, IN FRONT (darwin: `osascript -e 'open location "<url>"'`).
    # Serving a PFR means opening it in the operator's browser, in front. Never
    # hand over a link without opening it, and never `open -g` (it opens behind
    # other windows, so the operator never sees it). A link alone is a failed serve.
-   scripts/fr-listen.sh "${REPORTS_DIR}/<your-report-slug>.html"
-   # THE LISTENER (v4.1.0). fr-listen.sh opens/reopens the session, probes the url,
-   # blocks in `lavish-axi poll --owner`, keeps the raw round on disk, harvests a
-   # POST into <slug>-answers.md + hydrates the page + posts a one-line receipt,
-   # appends freeform panel messages to <slug>-messages.md, prints every message
-   # verbatim plus a `next:` line, and EXITS. Run it through this harness's tracked
-   # background facility (Claude Code: Bash run_in_background) so its exit resumes
-   # THIS session; read its stdout, do what the operator asked, then re-arm:
-   #   scripts/fr-listen.sh <file> --agent-reply "<your reply>"      # background again
-   # The reply posts into the report's conversation before the next poll. One
+   # Do not type a bare `open` yourself: the foreground hook blocks it, and the
+   # script's open fires only after the url has answered. --open is for the FIRST
+   # serve only; a re-arm never passes it (it would raise the window again).
+   #
+   # THE LISTENER (v4.1.0, receipt-on-re-arm since v4.2.0). After the open,
+   # fr-listen.sh blocks in `lavish-axi poll --owner`, keeps the raw round on disk,
+   # harvests a POST into <slug>-answers.md + hydrates the page, appends freeform
+   # panel messages to <slug>-messages.md, prints every message verbatim, a one-line
+   # `receipt:` for the POST, and a `next:` line whose --agent-reply already carries
+   # that receipt, then EXITS. Its exit resumes THIS session; read its stdout, do
+   # what the operator asked, then re-arm with the receipt plus your own reply:
+   #   scripts/fr-listen.sh <file> --agent-reply "<receipt> <your reply>"   # background again, no --open
+   # The reply posts into the report's conversation as the poll claims the listener
+   # slot, so the panel goes Working... -> listening with no "not listening" flash.
+   # (v4.1.0 posted the receipt with `lavish-axi reply` from inside the script; that
+   # cleared Lavish's "working" state while no poll was attached, so the panel showed
+   # "Your agent is not listening" between every round and its re-arm.) One
    # invocation = one round; exit 3 = operator ended it (do not re-arm).
    # Never nohup, `&`, a detached terminal, or a supervisor runner that wakes some
    # OTHER session (fm-pfr-open.sh wakes the Firstmate primary's queue; with no
@@ -157,7 +170,7 @@ After first run, the agent does not pick a default and does not ask again. The v
 
 - **Working spin.** The board keeps showing Working after you hand a result back until the reply command exits 0 (`lavish-axi reply <file> --agent-reply "<message>"`, or `poll ... --agent-reply`). Chat text does not clear it. A reply that was never sent is the usual reason the board looks stuck.
 - **Poll lives in the owning session.** The poll must run in the session that will act on the answers, tracked by that harness so its completion resumes that session. A poll in a detached terminal, another session, or an untracked background job delivers the operator's Send to a process that cannot act. Do not tell the user the report is being monitored until the wake path is live. If the poll is killed or times out, re-run it; feedback stays queued until delivery. `scripts/fr-listen.sh` is that poll; nothing else is.
-- **"Your agent is not listening" in the panel.** Lavish shows it whenever no poll is attached: before the first arm, and in the window between a round returning and the re-arm. Persisting past a minute means the acting session never re-armed, or the poll was held by a process that cannot act. On 2026-10-29 the PFR listener was a Firstmate supervisor runner (`fm-pfr-open.sh`): it captured the operator's message into the Firstmate home's wake queue, which only a Firstmate primary reads, and that primary was not running (a day lost). The page's own `Agent listening` cell only proves `window.lavish` exists, not that anyone polls; trust the panel and `lavish-axi`'s listener column.
+- **"Your agent is not listening" in the panel.** Lavish shows it whenever no poll is attached AND nothing is being worked on: before the first arm, or when a round returned and the acting session never re-armed. Between a round and its re-arm the panel shows Working... (Lavish keeps the delivered feedback as "working" until the agent replies; since v4.2.0 fr-listen.sh posts nothing from inside the round, so that state holds until the re-arm posts receipt + reply and attaches the poll in one step). "Not listening" past a minute means the acting session is gone, or the poll was held by a process that cannot act. On 2026-10-29 the PFR listener was a Firstmate supervisor runner (`fm-pfr-open.sh`): it captured the operator's message into the Firstmate home's wake queue, which only a Firstmate primary reads, and that primary was not running (a day lost). The page's own `Lavish: wired` cell only proves `window.lavish` exists (Lavish served the page); it cannot see whether anyone polls, which is why it never says "listening". Trust the panel and `lavish-axi`'s listener column.
 - **Pin mismatch.** One pin per machine. A client of another version restarts the shared server and kills every running poll.
 - **Tailnet bind fails.** Use the 127.0.0.1 url on the same port; do not downgrade to a static server.
 - **Poll returns `browser_disconnected` or `ended`.** See *Closing the loop*.
@@ -209,8 +222,8 @@ Why baseline-not-optional: uniformity is the entire value of the skill. Mixed-sh
 13. **Light/Dark mode toggle (top-right)** — default dark, button text `→ Light` / `→ Dark`, this tab only
 14. **Disk state + restore (v4.0.0)** — answers live on disk in `<slug>-answers.md`; `restore()` renders them from the page's `<script id="fr-state" type="application/json">` block, which `scripts/fr-hydrate.sh` writes. The page stores nothing in the browser. The `Answers` cell in the meta row says where the answers are: `on disk <time>` once hydrated, `unsaved · press POST` after any edit. **Reopen:** an agent that wants a section looked at again adds `data-reopen="<ISO time>"` to its `<section class="s">`; on load a done box whose answers were posted before that time is unchecked and shows a REOPENED note until the operator checks it and POSTs again. Sections without the attribute never lose their state. Reopen only when your work genuinely invalidates a done box; otherwise leave the attribute off.
 15. **Readable meta-header** — compact status line (Compiled · Patched · Opened-live) over an auto-hiding stacked changelog; on patch/reopen, prepend a changelog row (newest first) instead of extending the status line into a ·-chain
-16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea (it holds no state of its own); collapsible via its header; hidden while an agent is listening (lavish's Conversation panel replaces it)
-17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` (labeled POST at rest since v2.4.1) and the `Agent` cell in the meta row. When nobody is listening, POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours. Then it reads `window.lavish`: listening → the batch is queued (`queuePrompt`) and sent (`sendQueuedPrompts`) in one press, with no download (harvest writes the receipt beside the report); nobody listening → the batch is copied with an attach instruction. The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
+16. **Floating notes panel** — `#floatNotes`, a small fixed panel that follows the reader down the page, mirroring the open-notes textarea (it holds no state of its own); collapsible via its header; hidden while Lavish is wired (lavish's Conversation panel replaces it)
+17. **Agent wire (POST + presence), receipt first (v2.4.0)** — `#postBtn` (labeled POST at rest since v2.4.1) and the presence cell in the meta row, which reads `Lavish: wired` (green) when `window.lavish.queuePrompt` exists and `Lavish: absent` otherwise (v4.2.0). That is all the page can prove: Lavish hands the sandboxed artifact only `window.lavish = {queuePrompt, sendQueuedPrompts, endSession, getQueuedPrompts, setStatus, snapshot}` and never posts listener presence into the iframe, so the cell never says "listening"; whether an agent is polling is shown by the Lavish Conversation panel and `lavish-axi`'s listener column. When Lavish is absent, POST first downloads `<slug>-answers.md` (the full export with a one-line receipt header: slug, answered count, ISO time), the marker file every scanner on this box already honours, then copies the batch with an attach instruction. When Lavish is wired, the batch is queued (`queuePrompt`) and sent (`sendQueuedPrompts`) in one press, with no download (harvest writes the receipt beside the report). The record of the operator's answers never depends on an agent remembering to write it. See *Closing the loop* below.
 
 **Optional (synthesis-heavy reports):**
 
@@ -222,7 +235,7 @@ The canonical template has every one of these wired correctly. Do not reimplemen
 
 ## Design freeze and component kit (v3.0.0)
 
-The look is frozen. `references/canonical-template.html` carries the pixel skin (Press Start 2P headings, VT323 body, 3px square borders, 4px hard shadows, scanline body) and a declared version stamp: `<meta name="field-report-version" content="3.0.0">`. Do not restyle per report. The skin is the operator's call, made once on `firstmate-fit-2026-10-28`; changing it means a new template version, not a one-off edit.
+The look is frozen. `references/canonical-template.html` carries the pixel skin (Press Start 2P headings, VT323 body, 3px square borders, 4px hard shadows, scanline body) and a declared version stamp: `<meta name="field-report-version" content="4.2.0">`. Do not restyle per report. The skin is the operator's call, made once on `firstmate-fit-2026-10-28`; changing it means a new template version, not a one-off edit.
 
 **Version stamp.** `scripts/field-report-guard.sh` reads the current version from the template and rejects any report in the reports dir that lacks the matching `field-report-version` meta. A report built from an older template fails the guard until it is re-rendered.
 
@@ -289,12 +302,12 @@ The Daily Pulse is not built here, but it can adopt the same `fr-state` block an
 
 A report has two states and the page reads which one it is in; the user never picks.
 
-- **Listening.** lavish-axi served the page, so `window.lavish` exists and an agent is blocked in `lavish-axi poll`. The meta row shows `Agent listening`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll returns the prompt to the agent.
-- **Nobody listening.** Opened by file://, a static server, or a tablet with the lavish server idle. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.80 <path>` and `poll` (same pin as the rest of the machine), and the page flips to listening. "Copy as Claude prompt" carries the same instruction.
+- **Lavish wired.** lavish-axi served the page, so `window.lavish` exists. The meta row shows `Lavish: wired`; the button bar shows only POST, and the floating notes panel is hidden (lavish's Conversation panel replaces both the export buttons and the notes). POST queues one prompt: a batch header (sections answered, sections changed since the last POST) plus the full markdown export. The user presses lavish's **Send to Agent**; the poll (`scripts/fr-listen.sh`, in the acting session) returns the prompt to the agent. Whether that poll is attached right now is the panel's knowledge, not the page's (v4.2.0): the cell says wired, never listening.
+- **Lavish absent.** Opened by file://, a static server, or a tablet with the lavish server idle. The meta row shows `Lavish: absent`. POST copies the same batch to the clipboard with an attach instruction: paste into any agent, it acts on the answers, then runs `npx -y lavish-axi@0.1.80 <path>` and `poll` (same pin as the rest of the machine), and the page then reads wired. "Copy as Claude prompt" carries the same instruction.
 
 **Receipt before relay (v2.4.0, 2026-10-08; one-press since v3.1.0: the download now happens only when nobody is listening, because the lavish harvest writes the receipt beside the report).** The page writes its own receipt. POST downloads `<slug>-answers.md` into the browser's Downloads folder before anything is relayed. On this box a launchd watcher (`com.hugr.field-report-receipts`, script `~/1HUGR/code/scripts/field-report-receipts.sh`) moves that file beside the report in the reports directory, flips the delivery log to `answered` via `fr-log.sh`, emits `field_report_answered`, and regenerates the vault note `~/1HUGR/docs/field-reports.md` (OPEN and ANSWERED tables, one row per report). Since v4.0.0 the answered state shows on the page itself once hydrate has run (the POSTED stamp with the posted time, and `Answers: on disk`); the old ANSWERED fetch is gone, because a sandboxed page cannot read a sibling file. Why: for three weeks every report looked open because answers lived only in the browser and the marker was in a second party's custody; fifty deliveries, two marked answered. The receipt is the operator's Sent folder.
 
-**Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-poll (`lavish-axi poll <file> --agent-reply "<one-line receipt>"`).
+**Receipt rule.** Every POST names section ids. The agent's reply gives each submitted id exactly one outcome: done with evidence, deferred with a reason, or rejected with a reason. Compare the submitted id set with the receipt before reporting completion, and surface every missing id. Then re-arm (`scripts/fr-listen.sh <file> --agent-reply "<fr-listen's receipt> <your one-line receipt>"`, in the background, without `--open`).
 
 **End.** The user's **Send & End** or **End session** returns `ended` from the poll: stop polling, deliver anything left in chat, do not reopen uninvited. `browser_disconnected` means the tab closed: ask before reopening or ending.
 
@@ -314,7 +327,7 @@ Run mentally before opening in the browser:
 - [ ] `{REPORT_PATH_PLACEHOLDER}` is the real absolute path
 - [ ] `{TOMORROW_BANNER_PLACEHOLDER}` replaced with nothing (no `#tomorrowBell` element)
 - [ ] `<script id="fr-state" type="application/json">` present; `{}` on a fresh render, or re-hydrated from `<slug>-answers.md` after a re-render
-- [ ] Served through `npx -y lavish-axi@0.1.80` and the poll is running in this session; the `Report:` line is the lavish url (not a static-server url, not file://)
+- [ ] Served by `scripts/fr-listen.sh <file> --open` in this session's tracked background facility (it serves through the pinned `npx -y lavish-axi@0.1.80` shim, opens the proven url in front, and polls); every re-arm carries `--agent-reply`, never `--open`; the `Report:` line is the lavish url (not a static-server url, not file://)
 - [ ] The request was a PFR, not the Daily Pulse / wake-up plan / morning report
 
 ## Anti-patterns (user complaints these cause)
@@ -343,7 +356,7 @@ When the user names a new feature or a bug is fixed:
 
 **Required files (bundled in this skill):**
 - `references/canonical-template.html` — single source of truth template. Every report copies this.
-- `scripts/fr-listen.sh` — the owning session's listener: one Lavish round per run (open, probe, poll, keep raw, harvest + hydrate + receipt, record messages, print `next:`). Run in the harness's tracked background facility; re-arm with `--agent-reply`.
+- `scripts/fr-listen.sh` — the owning session's listener: one Lavish round per run (open the session, probe, `--open` the proven url in front on the first serve, poll, keep raw, harvest + hydrate, record messages, print `receipt:` and `next:` with the receipt pre-filled). Run in the harness's tracked background facility; re-arm with `--agent-reply`, never `--open`.
 - `scripts/fr-hydrate.sh` — bakes `<slug>-answers.md` into the report's `fr-state` block (atomic). Called by fr-listen.sh after harvest, and by hand after any re-render.
 - `scripts/field-report-guard.sh` — PostToolUse guard (template version, done-box placement, PFR identity, Lavish-only delivery, `fr-state` present, no browser storage).
 - `tests/test-disk-state.js`, `tests/test-guard.sh` — run both before shipping a template change.
@@ -354,7 +367,7 @@ When the user names a new feature or a bug is fixed:
 
 **Required tools:**
 - `cp` (file copy)
-- `open` (macOS — opens in the default browser, or `open -a "<browser>"` for a specific one). On Linux: `xdg-open`. On Windows: `start`.
+- `osascript` (macOS) or `xdg-open` (Linux): `scripts/fr-listen.sh --open` uses them to open the served url in the operator's default browser, in front. The agent never runs a bare `open` itself.
 - A text editor / Edit/Write tools (Claude Code)
 
 ## Observability
@@ -410,4 +423,4 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 
 ## Origin
 
-The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode. v2.4.1 (2026-10-27) stamps `data-lavish-action="toggle"` on every `.toggle` so Lavish selects instead of annotating, and keeps the POST button labeled and visible without hover. v4.0.0 (2026-10-30) moved the answers to disk: under Lavish's sandbox every browser-storage save had been silently dropped since Lavish became mandatory, so the template now stores nothing, restores only from the `fr-state` block, and `fr-hydrate.sh` bakes the harvested answers file into it. v4.1.0 (2026-10-30) added `scripts/fr-listen.sh`, the owning-session listener, after the Firstmate supervisor-runner delivery left a served PFR deaf for a day: the runner's wake went to a queue only a Firstmate primary reads, and none was running. Proven live the same night: two panel messages acted on and answered in the same conversation, two POSTs harvested and hydrated, DONE state surviving reload.
+The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode. v2.4.1 (2026-10-27) stamps `data-lavish-action="toggle"` on every `.toggle` so Lavish selects instead of annotating, and keeps the POST button labeled and visible without hover. v4.0.0 (2026-10-30) moved the answers to disk: under Lavish's sandbox every browser-storage save had been silently dropped since Lavish became mandatory, so the template now stores nothing, restores only from the `fr-state` block, and `fr-hydrate.sh` bakes the harvested answers file into it. v4.1.0 (2026-10-30) added `scripts/fr-listen.sh`, the owning-session listener, after the Firstmate supervisor-runner delivery left a served PFR deaf for a day: the runner's wake went to a queue only a Firstmate primary reads, and none was running. Proven live the same night: two panel messages acted on and answered in the same conversation, two POSTs harvested and hydrated, DONE state surviving reload. v4.2.0 (2026-10-30) made the first serve one command (`fr-listen.sh <file> --open`: open in front only after the url answers 200, never on a re-arm; the bare `open` line is gone), moved the POST receipt off `lavish-axi reply` and onto the re-arm's `--agent-reply` (the in-script reply cleared Lavish's working state and flashed "Your agent is not listening" between every round and its re-arm), and made the presence cell say what the page can prove, `Lavish: wired` / `Lavish: absent`, since Lavish never tells the sandboxed page whether anyone polls.

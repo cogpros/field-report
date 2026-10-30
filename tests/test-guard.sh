@@ -10,7 +10,7 @@ run(){ printf '{"tool_input":{"file_path":"%s"}}' "$1" | "$HERE/scripts/field-re
 fail=0; chk(){ if [ "$2" != "$3" ]; then echo "FAIL $1: got $2 want $3"; fail=1; else echo "ok   $1 (exit $2)"; fi; }
 cp "$T" "$TMP/dash/reports/fresh.html";               chk fresh-passes        "$(run "$TMP/dash/reports/fresh.html")" 0
 sed '/field-report-version/d' "$T" > "$TMP/dash/reports/nostamp.html"; chk missing-stamp-fails "$(run "$TMP/dash/reports/nostamp.html")" 2
-sed 's/content="4.0.0"/content="3.1.2"/' "$T" > "$TMP/dash/reports/old.html"; chk old-stamp-fails "$(run "$TMP/dash/reports/old.html")" 2
+sed 's/content="4.2.0"/content="3.1.2"/' "$T" > "$TMP/dash/reports/old.html"; chk old-stamp-fails "$(run "$TMP/dash/reports/old.html")" 2
 # done box must be the LAST element of its section: old (top) layout fails, template layout passes
 python3 - "$T" "$TMP/dash/reports/top.html" <<'PY'
 import re, sys
@@ -58,7 +58,9 @@ lacks(){ if grep -Eqi -- "$2" "$3"; then echo "FAIL $1: /$2/ found in $(basename
 has skill-pfr-trigger        '^  - "PFR"' "$S"
 has skill-forbids-pulse      'never produces the Daily Pulse' "$S"
 has skill-lavish-mandatory   'Lavish is mandatory' "$S"
-has skill-pinned-lavish      'npx -y lavish-axi@0\.1\.80 poll' "$S"
+# v4.1.0 replaced the hand-typed `npx -y lavish-axi@0.1.80 poll` with scripts/fr-listen.sh; the pin itself stays named.
+has skill-pinned-lavish      'npx -y lavish-axi@0\.1\.80' "$S"
+has skill-listener-script    'scripts/fr-listen\.sh "\$\{REPORTS_DIR\}/<your-report-slug>\.html"' "$S"
 has skill-127-fallback       '127\.0\.0\.1' "$S"
 has skill-never-static       'NEVER the delivery' "$S"
 has skill-working-spin       'Working spin' "$S"
@@ -71,4 +73,24 @@ has skill-never-stop-lavish  'never stop the Lavish server' "$S"
 lacks skill-no-storage-promise 'persists to localStorage|localStorage persistence' "$S"
 lacks skill-no-open-fallback '^   open -g "\$\{REPORTS_DIR\}' "$S"
 lacks skill-no-without-lavish 'otherwise open the file' "$S"
+
+# v4.2.0: the first serve opens in front through fr-listen.sh --open; no bare `open` in the procedure
+L="$HERE/scripts/fr-listen.sh"
+has skill-open-flag          'fr-listen\.sh "\$\{REPORTS_DIR\}/<your-report-slug>\.html" --open' "$S"
+has skill-open-first-only    '--open is for the FIRST' "$S"
+lacks skill-no-bare-open     '^   open "<session url' "$S"
+has listen-open-flag         '^    --open\) do_open=1' "$L"
+has listen-osascript-open    'osascript -e "open location' "$L"
+has listen-open-after-probe  '^# 2b\. --open: first serve only' "$L"
+# v4.2.0: the receipt rides the re-arm, never `lavish-axi reply` from inside the round
+lacks listen-no-reply-receipt '"lavish-axi", "reply"' "$L"
+has listen-receipt-line      'print\("receipt: %s" % receipt\)' "$L"
+has listen-receipt-in-next   'lead \+ "<your reply to the operator>"' "$L"
+# v4.2.0: the presence cell says what the page can prove
+has template-presence-wired  '"Lavish: wired":"Lavish: absent"' "$T"
+lacks template-no-listening  '"listening":"nobody listening"' "$T"
+has readme-presence-wired    'Lavish: wired' "$RD"
+has inventory-presence-wired 'Lavish: wired' "$HERE/references/feature-inventory.md"
+lacks readme-no-agent-listening 'Agent listening' "$RD"
+lacks skill-no-agent-listening 'Agent listening' "$S"
 exit $fail

@@ -1,7 +1,7 @@
 #!/bin/bash
-# fr-listen.sh — the owning session's listener for one PFR (field-report v4.1.0).
+# fr-listen.sh — the owning session's listener for one PFR (field-report v4.2.0).
 #
-#   fr-listen.sh <slug.html> [--agent-reply "<text>" | --agent-reply-file <path>]
+#   fr-listen.sh <slug.html> [--open] [--agent-reply "<text>" | --agent-reply-file <path>]
 #                            [--owner <label>] [--no-probe]
 #
 # Run this in the session that will ACT on the operator's answers, through that
@@ -13,6 +13,10 @@
 #              it); the session url is printed on stderr as `session: <url>`.
 #   2. probe   the url must answer 200; otherwise the 127.0.0.1 url on the same
 #              port is probed. The url that answered is printed as `url: <url>`.
+#              With --open (FIRST serve only, never on a re-arm) the proven url
+#              is then opened in the operator's browser, in front: serving a PFR
+#              IS opening it (operator, 2026-10-29). darwin: `osascript -e 'open
+#              location "<url>"'`; elsewhere `xdg-open`. Printed as `opened: <url>`.
 #   3. poll    `lavish-axi poll <file> --owner <label> [--agent-reply ...]`.
 #              The reply, when given, is posted before the long-poll, so the
 #              re-arm after a round IS the agent's reply to that round. The exact
@@ -23,13 +27,18 @@
 #   5. act     a field-report POST row is written to <reports>/<slug>-answers.md
 #              (a differing older file is kept as <slug>-answers.<utc>.md), the
 #              delivery log is flipped (FR_LOG_BIN, default ~/1HUGR/bin/fr-log.sh,
-#              skipped when absent), the page is hydrated (fr-hydrate.sh beside
-#              this script), and a one-line receipt is posted to the panel with
-#              `lavish-axi reply`. Every other row (a freeform message, an
+#              skipped when absent), and the page is hydrated (fr-hydrate.sh
+#              beside this script). Every other row (a freeform message, an
 #              annotation) is appended to <reports>/<slug>-messages.md.
 #   6. report  stdout: the lifecycle, every message verbatim, the POST summary,
-#              and the `next:` command. The agent reads it, acts, and re-arms
-#              with --agent-reply carrying its receipt.
+#              a one-line `receipt:` for the POST, and the `next:` command, whose
+#              --agent-reply already carries that receipt. The agent reads it,
+#              acts, and re-arms with the receipt plus its own reply. Nothing is
+#              posted to the panel from here: `lavish-axi reply` clears Lavish's
+#              "working" state, and with no poll attached the panel then shows
+#              "Your agent is not listening" until the re-arm (the 2026-10-29
+#              flash). Carried on the re-arm, the receipt lands as the poll
+#              claims the listener slot, so the panel goes Working -> listening.
 #
 # Exit codes: 0 feedback captured and recorded (re-arm after acting);
 #             3 session ended (Send & End / End session: do NOT re-arm);
@@ -37,11 +46,11 @@
 #             5 waiting (another poller holds the session; do not fight it);
 #             2 usage or contract error; 1 Lavish or write failure.
 #
-# This script never stops or restarts the Lavish server, never opens a browser,
-# and touches no Firstmate state. It is the single delivery path the skill
-# promises: the poll that wakes the session that will act. A poll held by a
-# supervisor runner that wakes some OTHER session (the 2026-10-29 fm-pfr-open.sh
-# design) is exactly the listener that goes deaf.
+# This script never stops or restarts the Lavish server, opens a browser only
+# when told to (--open), and touches no Firstmate state. It is the single
+# delivery path the skill promises: the poll that wakes the session that will
+# act. A poll held by a supervisor runner that wakes some OTHER session (the
+# 2026-10-29 fm-pfr-open.sh design) is exactly the listener that goes deaf.
 set -u
 
 usage() { sed -n '2,/^set -u$/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; exit 2; }
@@ -55,12 +64,13 @@ OWNER="${FR_LISTEN_OWNER:-fr-listen}"
 RETRY_LIMIT=12
 RETRY_DELAY="${FR_LISTEN_RETRY_DELAY:-5}"
 
-report='' reply='' reply_file='' probe=1
+report='' reply='' reply_file='' probe=1 do_open=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --agent-reply) [ "$#" -ge 2 ] || usage; reply=$2; shift 2 ;;
     --agent-reply-file) [ "$#" -ge 2 ] || usage; reply_file=$2; shift 2 ;;
     --owner) [ "$#" -ge 2 ] || usage; OWNER=$2; shift 2 ;;
+    --open) do_open=1; shift ;;
     --no-probe) probe=0; shift ;;
     -h|--help) usage ;;
     --*) usage ;;
@@ -109,6 +119,15 @@ if [ "$probe" -eq 1 ]; then
   fi
 fi
 note "url: $chosen"
+
+# 2b. --open: first serve only. The url has just answered 200, so what opens is
+# the live page. A re-arm never passes --open (it would raise the window again).
+if [ "$do_open" -eq 1 ]; then
+  case "$(uname -s)" in
+    Darwin) osascript -e "open location \"$chosen\"" >/dev/null 2>&1 ;;
+    *) xdg-open "$chosen" >/dev/null 2>&1 ;;
+  esac && note "opened: $chosen" || note "warning: could not open the browser; the operator must open $chosen"
+fi
 
 # 3. poll, 4. keep
 mkdir -p "$keep_dir" || die "cannot create $keep_dir"
@@ -379,20 +398,22 @@ if posts:
                 n if n is not None else "?", total, os.path.basename(dest), hyd)
 print(post_line)
 
-# A receipt is a completed outcome, so it is posted now; the agent's own reply
-# rides the re-arm. Best effort: a failed receipt never loses the answers.
+# The receipt is NOT posted from here. `lavish-axi reply` clears Lavish's
+# "working" state, and with no poll attached the panel flashes "Your agent is
+# not listening" until the re-arm. The receipt rides the re-arm's --agent-reply
+# instead (printed below and pre-filled in `next:`), so the panel stays
+# Working... until the poll posts receipt + reply and claims the listener slot.
+# The answers are already on disk above, so a slow agent loses nothing.
 if receipt and not ended and lifecycle == "feedback":
-    try:
-        r = subprocess.run(["lavish-axi", "reply", real, "--agent-reply", receipt], capture_output=True, text=True, timeout=30)
-        print("receipt: %s" % ("posted" if r.returncode == 0 else "not posted (%s)" % (r.stderr or r.stdout).strip()[:200]))
-    except Exception as e:  # noqa: BLE001
-        print("receipt: not posted (%s)" % e)
+    print("receipt: %s" % receipt)
 
 print("session: %s%s" % (status or "?", " session_ended" if ended else ""))
 print("url: %s" % R["FR_URL"])
 me = R["FR_SCRIPT"]
 if lifecycle == "feedback" and not ended:
-    print('next: %s %s --agent-reply "<your reply to the operator>"   # run in the background again; the reply posts before the poll' % (shlex.quote(me), shlex.quote(real)))
+    lead = (receipt + " ") if receipt else ""
+    print('next: %s %s --agent-reply %s   # run in the background again, never with --open; the reply posts before the poll' % (
+        shlex.quote(me), shlex.quote(real), shlex.quote(lead + "<your reply to the operator>")))
     sys.exit(0)
 if lifecycle == "ended" or ended:
     print("next: ENDED by the operator. Deliver anything left in chat. Do not re-arm or reopen uninvited.")

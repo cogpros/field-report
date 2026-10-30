@@ -1,10 +1,10 @@
 <!doctype html>
 <!-- session: {SESSION_ID_PLACEHOLDER} -->
-<!-- field-report-template v4.0.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
+<!-- field-report-template v4.2.0 (design frozen 2026-10-28: pixel skin, Press Start 2P + VT323). Do not edit the skin per report; the guard rejects reports missing this version stamp. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="field-report-version" content="4.0.0">
+<meta name="field-report-version" content="4.2.0">
 <title>Field report — {REPORT_TITLE_PLACEHOLDER}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -238,7 +238,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
     <span class="ms"><b>Patched</b> {PATCH_TIMESTAMP_PLACEHOLDER}</span>
     <span class="ms"><b>Opened</b> <span id="openedAt">now</span></span>
     <span class="ms">{REPORT_TYPE_PLACEHOLDER}</span>
-    <span class="ms" id="presence" title="v2.3.0 agent wire: read from window.lavish"><b>Agent</b> <span id="presenceText">checking…</span></span>
+    <span class="ms" id="presence" title="v4.2.0: whether lavish-axi served this page (window.lavish). Whether an agent is polling is shown by the Lavish Conversation panel, never by this page."><span id="presenceText">Lavish: checking…</span></span>
     <span class="ms" id="diskState" title="v4.0.0: answers live on disk; POST is the only save"><b>Answers</b> <span id="diskText">unsaved until POST</span></span>
   </div>
   <!-- CHANGELOG: on patch/reopen, prepend one row here, newest first:
@@ -340,7 +340,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
 
 <!-- Fixed button bar: POST stays labeled; export buttons collapse/expand on hover -->
 <div class="bar">
-  <button id="postBtn" class="pink" title="POST answers: to the listening agent when one is attached, else to the clipboard">POST</button>
+  <button id="postBtn" class="pink" title="POST answers: through Lavish when it served this page, else to the clipboard">POST</button>
   <button id="copyMdBtn" class="pink" title="Copy markdown">Copy markdown</button>
   <button id="downloadMdBtn" class="brown" title="Download .md">Download .md</button>
   <button id="claudeBtn" class="amber" title="Copy as Claude prompt">Copy as Claude prompt</button>
@@ -531,9 +531,14 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
 
   // ---- v2.3.0 agent wire (feature 17) ----
   // NOW vs LATER is a fact the page reads, never a mode you pick: when lavish-axi
-  // served this page it injected window.lavish and an agent is polling. Otherwise
-  // (file://, a static server, a tablet) nobody is listening and POST copies the
-  // same batch to the clipboard with an instruction that lets any agent attach.
+  // served this page it injected window.lavish, so POST can reach a polling agent.
+  // Otherwise (file://, a static server, a tablet) there is no Lavish and POST copies
+  // the same batch to the clipboard with an instruction that lets any agent attach.
+  // What the page CANNOT know (v4.2.0): whether anyone is polling right now. Lavish
+  // hands the sandboxed artifact only window.lavish = {queuePrompt, sendQueuedPrompts,
+  // endSession, getQueuedPrompts, setStatus, snapshot} and never posts presence into
+  // the iframe; listener state lives in the Lavish Conversation panel and in
+  // `lavish-axi`'s listener column. So the cell says "Lavish: wired", never "listening".
   const wire={
     live(){return !!(window.lavish && typeof window.lavish.queuePrompt==="function")},
     pathHint(){return (reportPath && !/PLACEHOLDER/.test(reportPath)) ? reportPath : decodeURIComponent(location.pathname)},
@@ -551,7 +556,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
         "Act on the answers below. Reply with one line per section id: done (with evidence), deferred (why), or rejected (why). Account for every id before reporting completion.","",gather()];
       return lines.join("\n");
     },
-    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page flips to \"agent listening\" once the poll is attached."].join("\n")},
+    instruction(b){return ["","---","To attach a live agent to this report, paste this whole block into any agent and it will act on the answers, then run:",`  npx -y lavish-axi@0.1.80 ${b.path}`,`  npx -y lavish-axi@0.1.80 poll ${b.path}`,"The page then reads \"Lavish: wired\"; the Lavish Conversation panel shows whether the poll is attached."].join("\n")},
     remember(b,how){const o={};b.items.forEach(i=>o[i.id]=i.text);this.baseline=o;dirty=false;diskLine(how+" "+fmtTs(new Date())+" CST","answers reach disk when your supervisor's listener harvests them (or the receipt is filed); reload then shows them")},
     // Receipt before relay (2026-10-08), narrowed in v3.1.1: when nobody is listening,
     // POST writes the answers to disk as a download named <slug>-answers.md, the marker
@@ -578,7 +583,7 @@ ul.checklist li.checked span{opacity:.5;text-decoration:line-through;text-decora
       try{this.receipt(b)}catch(e){toast("Receipt download failed; answers still in this page")}
       if(await copyText(this.prompt(b)+this.instruction(b))){this.remember(b,"receipt downloaded");toast("Receipt saved to Downloads · copied with attach instructions");stamp()}else{toast("Receipt saved to Downloads · copy failed")}
     },
-    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"listening":"nobody listening";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers to the listening agent (one press)":"POST answers: nobody listening, copies the batch with attach instructions"}
+    presence(){const t=document.getElementById("presenceText");if(!t)return;const live=this.live();const fn=document.getElementById("floatNotes");if(fn)fn.style.display=live?"none":"";["copyMdBtn","downloadMdBtn","claudeBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display=live?"none":""});t.textContent=live?"Lavish: wired":"Lavish: absent";t.style.color=live?"var(--go,#4caf50)":"";const pb=document.getElementById("postBtn");if(pb)pb.title=live?"POST answers through Lavish (one press); Send to Agent delivers them to the polling agent":"POST answers: no Lavish on this page, copies the batch with attach instructions"}
   };
   wire.baseline=wire.snapshot();
   wire.presence();setTimeout(()=>wire.presence(),800);setTimeout(()=>wire.presence(),3000);setInterval(()=>wire.presence(),15000);
