@@ -118,7 +118,8 @@ After first run, the agent does not pick a default and does not ask again. The v
    # "Your agent is not listening" between every round and its re-arm.) One
    # invocation = one round; exit 3 = operator ended it (do not re-arm).
    # Never nohup, `&`, a detached terminal, or a supervisor runner that wakes some
-   # OTHER session (fm-pfr-open.sh wakes the Firstmate primary's queue; with no
+   # OTHER session (the script itself refuses stdout on /dev/null, exit 2, and lets
+   # go of the poll if the shell that started it disappears, exit 6) (fm-pfr-open.sh wakes the Firstmate primary's queue; with no
    # Firstmate primary the operator's Send reaches nobody, 2026-10-29).
    #
    # Session url: prefer the one lavish prints. If the tailnet bind fails (the url
@@ -133,7 +134,9 @@ After first run, the agent does not pick a default and does not ask again. The v
    # If lavish-axi will not start, say so and stop. Do not fall back to a bare
    # HTML open and call it delivered.
 
-4. Emit a bus event (see Observability section) if your project has one.
+4. Emit a bus event (see Observability section) if your project has one. If your
+   box has a delivery log, record the serve too; the guard names the exact
+   `fr-log.sh delivered` line when one is missing.
 
 4a. After every POST the answers go to disk, then into the page: fr-listen.sh
    harvests the POST into ${REPORTS_DIR}/<slug>-answers.md, flips the delivery
@@ -198,6 +201,7 @@ All placeholders use `{NAME_PLACEHOLDER}` form. Replace every one before saving.
 | `{SUBTITLE_PLACEHOLDER}` | Sub-heading text under H1 |
 | `{SESSION_NOTES_PLACEHOLDER}` | Short note about session context (e.g. `synthesizes 7 checkpointed sessions`) |
 | `{LEDE_TEXT_PLACEHOLDER}` | First paragraph; sets up the report. 2-4 sentences. |
+| `{STAT_n_NUM}` / `{STAT_n_LABEL}` | The optional totals grid: fill them, or delete the `.totals` block. They do not end in `_PLACEHOLDER`, so that search misses them. |
 
 ## The 17 baseline features + 2 optional patterns
 
@@ -317,7 +321,9 @@ A report has two states and the page reads which one it is in; the user never pi
 
 Run mentally before opening in the browser:
 
-- [ ] Every placeholder replaced (search the file for `_PLACEHOLDER` — should return zero matches)
+- [ ] Every placeholder replaced (search the file for `_PLACEHOLDER` and `{STAT_` — should return zero matches)
+- [ ] Unused optional template blocks deleted (sample tier, flow, five-lens panel, synthesis)
+- [ ] One textarea has `data-q="open-notes"` if you want the floating notes panel to mirror it (otherwise it mirrors the last textarea)
 - [ ] Every section has a `data-section` and matching `data-cb`
 - [ ] Every textarea has `data-q`
 - [ ] Every toggle group has `data-q`

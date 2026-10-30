@@ -6,7 +6,9 @@
 #
 # Run this in the session that will ACT on the operator's answers, through that
 # harness's tracked background facility (Claude Code: Bash run_in_background),
-# so its exit resumes that same session with everything below on stdout. One
+# so its exit resumes that same session with everything below on stdout. Run
+# detached (`&`, nohup, stdout on /dev/null) it refuses or releases the poll, exit
+# 2 or 6, because nothing could act on what it hears. One
 # invocation = one Lavish round:
 #
 #   1. open    `lavish-axi <file> --no-open` (reopened once if the operator ended
@@ -56,6 +58,15 @@ set -u
 usage() { sed -n '2,/^set -u$/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; exit 2; }
 die() { printf 'fr-listen: error: %s\n' "$1" >&2; exit "${2:-1}"; }
 note() { printf 'fr-listen: %s\n' "$1" >&2; }
+
+# A listener nobody can hear is worse than none: it holds the slot, so the panel
+# says the agent is listening while the operator's Send wakes no one. Both checks
+# below stop that. FR_LISTEN_ALLOW_DETACHED=1 is for a supervisor that really does
+# read this script's stdout and act on it.
+allow_detached=${FR_LISTEN_ALLOW_DETACHED:-0}
+if [ "$allow_detached" != 1 ] && [ /dev/fd/1 -ef /dev/null ]; then
+  die "stdout is /dev/null, so no session can read the round. Run this through the harness's tracked background facility (Claude Code: Bash run_in_background), never \`&\`, nohup or a redirect." 2
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HYDRATE="${FR_HYDRATE_BIN:-$SCRIPT_DIR/fr-hydrate.sh}"
@@ -141,11 +152,32 @@ if [ -n "$reply_file" ]; then
 elif [ -n "$reply" ]; then
   poll_args+=(--agent-reply "$reply")
 fi
+WATCH_INTERVAL="${FR_LISTEN_WATCH_INTERVAL:-1}"
+poll_pid=''
+# The poll runs through the shim (npx, then node), so stop its whole subtree. Only
+# this script's own descendants: never a pattern match, never the shared server.
+kill_tree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done; kill "$1" 2>/dev/null; }
+kill_poll() { [ -z "$poll_pid" ] || kill_tree "$poll_pid"; }
+trap 'kill_poll; exit 143' TERM
+trap 'kill_poll; exit 130' INT
+trap 'kill_poll; exit 129' HUP
 interrupted=$'error: Lavish Editor poll response was interrupted\ncode: SERVER_ERROR'
 attempt=0
 while :; do
   note "polling (owner=$OWNER) $(date -u +%H:%M:%SZ)"
-  lavish-axi "${poll_args[@]}" > "$result" 2>&1
+  lavish-axi "${poll_args[@]}" > "$result" 2>&1 &
+  poll_pid=$!
+  while kill -0 "$poll_pid" 2>/dev/null; do
+    if [ "$allow_detached" != 1 ] && [ "$(ps -o ppid= -p $$ | tr -d '[:space:]')" = 1 ]; then
+      # The shell that started this is gone: `&`, nohup, or the session ended.
+      # Let go of the slot so the panel tells the truth. Feedback stays queued.
+      kill_poll
+      trap - TERM INT HUP
+      die "orphaned: the session that started this listener is gone, so nobody can act on a round. Released the poll; feedback stays queued. Re-arm through the harness's tracked background facility." 6
+    fi
+    sleep "$WATCH_INTERVAL"
+  done
+  wait "$poll_pid"
   rc=$?
   if [ "$(cat "$result")" = "$interrupted" ] && [ "$attempt" -lt "$RETRY_LIMIT" ]; then
     attempt=$((attempt + 1))
@@ -412,7 +444,7 @@ print("url: %s" % R["FR_URL"])
 me = R["FR_SCRIPT"]
 if lifecycle == "feedback" and not ended:
     lead = (receipt + " ") if receipt else ""
-    print('next: %s %s --agent-reply %s   # run in the background again, never with --open; the reply posts before the poll' % (
+    print('next: %s %s --agent-reply %s   # run through the tracked background facility (Claude Code: Bash run_in_background=true), never shell & / nohup / a redirect, never --open; the reply posts before the poll' % (
         shlex.quote(me), shlex.quote(real), shlex.quote(lead + "<your reply to the operator>")))
     sys.exit(0)
 if lifecycle == "ended" or ended:

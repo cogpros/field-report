@@ -93,4 +93,9 @@ has readme-presence-wired    'Lavish: wired' "$RD"
 has inventory-presence-wired 'Lavish: wired' "$HERE/references/feature-inventory.md"
 lacks readme-no-agent-listening 'Agent listening' "$RD"
 lacks skill-no-agent-listening 'Agent listening' "$S"
+# A listener nobody can hear must not hold the slot
+has listen-refuses-devnull   '/dev/fd/1 -ef /dev/null' "$L"
+has listen-orphan-check      'orphaned: the session that started' "$L"
+has listen-next-tracked      'run_in_background=true' "$L"
+has skill-stat-placeholders  'STAT_n_NUM' "$S"
 exit $fail
