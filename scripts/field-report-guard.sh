@@ -14,7 +14,8 @@
 #     sandboxes the page without allow-same-origin, so storage throws and every
 #     answer kept there is lost on reload; the answers file on disk is the record.
 # Reads the PostToolUse JSON on stdin, extracts file_path. Env overrides (tests):
-#   FR_REPORTS_DIR, FR_TEMPLATE.
+#   FR_REPORTS_DIR, FR_TEMPLATE, FR_STATE_DIR (default $HOME/1HUGR/.runtime/state/field-reports),
+#   FR_DELIVER_BIN (default $HOME/1HUGR/bin/field-report-deliver.sh).
 
 set -euo pipefail
 
@@ -143,21 +144,24 @@ MSG
   exit 2
 fi
 
-# Delivery-log reminder: one per slug, never a block.
-FR_LOG="$HOME/1HUGR/.runtime/state/field-reports/log.jsonl"
+# Delivery reminder: one per slug, never a block. Keyed on the link record, not the
+# log row: the link record is what the morning run reads. No-op without the binary.
+FR_STATE="${FR_STATE_DIR:-$HOME/1HUGR/.runtime/state/field-reports}"
+DELIVER="${FR_DELIVER_BIN:-$HOME/1HUGR/bin/field-report-deliver.sh}"
 SLUG="$(basename "$FP" .html)"
-STAMP_DIR="$HOME/1HUGR/.runtime/state/field-reports/.reminded"
-if [ -z "${FR_REPORTS_DIR:-}" ]; then
+STAMP_DIR="$FR_STATE/.reminded"
+if [ -z "${FR_REPORTS_DIR:-}" ] && [ -x "$DELIVER" ]; then
   mkdir -p "$STAMP_DIR" 2>/dev/null || true
-  if ! grep -q "\"slug\": \"$SLUG\"" "$FR_LOG" 2>/dev/null && [ ! -e "$STAMP_DIR/$SLUG" ]; then
+  if [ ! -e "$FR_STATE/cards/$SLUG.json" ] && [ ! -e "$STAMP_DIR/$SLUG" ]; then
     : > "$STAMP_DIR/$SLUG" 2>/dev/null || true
-    python3 - "$SLUG" "$FP" <<'PY'
-import json, sys
-slug, fp = sys.argv[1], sys.argv[2]
-msg = ("[field-report-guard] no delivery-log line for %s yet. After lavish prints the url, run: "
-       "~/1HUGR/bin/fr-log.sh delivered %s \"<title>\" %s \"<url>\" eom <sections>  "
-       "(url \"\" if nobody is listening). On the POST receipt: fr-log.sh state %s answered <n>. "
-       "Section 0 of tomorrow's wake plan reads this log." % (slug, slug, fp, slug))
+    python3 - "$SLUG" "$FP" "$DELIVER" <<'PY'
+import json, shlex, sys
+slug, fp, deliver = sys.argv[1:4]
+msg = ("[field-report-guard] %s is not linked yet. After lavish prints the url, run: "
+       "%s %s \"<title>\" %s \"<url>\" <seat> <sections> --stop \"<where you stopped>\" "
+       "[--pick \"<reversible action>\" --by <YYYY-MM-DD> --undo \"<reversal>\"]  "
+       "(url \"\" if nobody is listening). The link record lets the morning run find the report and act on its PICK."
+       % (slug, shlex.quote(deliver), shlex.quote(slug), shlex.quote(fp)))
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": msg}}))
 PY
   fi

@@ -14,7 +14,7 @@ description: >
   morning report; those run on the separate Daily Pulse path. Do NOT auto-fire
   on description match. NOT for: Daily Pulse / wake-up plan / morning report,
   read-only audit logs with no user input, non-HTML outputs.
-version: 4.2.0
+version: 4.3.0
 license: MIT
 public_repo: https://github.com/cogpros/field-report
 metadata:
@@ -24,7 +24,7 @@ metadata:
   bus_event: field_report_generated
 ---
 
-# Skill: field-report (PFR) v4.2.0
+# Skill: field-report (PFR) v4.3.0
 
 ## Identity: this skill is PFR, and only PFR
 
@@ -134,13 +134,29 @@ After first run, the agent does not pick a default and does not ask again. The v
    # If lavish-axi will not start, say so and stop. Do not fall back to a bare
    # HTML open and call it delivered.
 
-4. Emit a bus event (see Observability section) if your project has one. If your
-   box has a delivery log, record the serve too; the guard names the exact
-   `fr-log.sh delivered` line when one is missing.
+4. Record the delivery, on the first serve only. A re-render of the same report
+   keeps its first record and is not delivered again. After lavish prints the
+   session url, run ONE command (it writes the delivery-log row and the link record,
+   which lets the morning run find the report and act on its PICK):
+
+      "${FR_DELIVER_BIN:-$HOME/1HUGR/bin/field-report-deliver.sh}" \
+        <slug> "<title>" "${REPORTS_DIR}/<slug>.html" "<session url>" <seat> <sections> \
+        --stop "<exactly where you stopped>" \
+        [--pick "<one reversible action you are authorized to take if unanswered>" --by <YYYY-MM-DD> --undo "<exact reversal>"]
+
+   url "" if nobody is listening. Exit 0 prints `linked: <slug> ...`. Exit 2: fix the
+   arguments; the re-run is safe. Exit 1, by its stderr text:
+   - "delivery changed": a re-render keeps its first record and the same file (step
+     4b), so do not deliver it again. A new slug is only for a genuinely different report.
+   - "invalid report slug": fix the slug.
+   - "producer busy; bounded lock wait expired": wait and re-run the identical command.
+   - "card create failed": the row is logged; re-run the identical command once the board is back.
+   If the binary is absent on this box, skip this step; the guard will not nag.
+   Emit a bus event (see Observability section) if your project has one.
 
 4a. After every POST the answers go to disk, then into the page: fr-listen.sh
-   harvests the POST into ${REPORTS_DIR}/<slug>-answers.md, flips the delivery
-   log, and runs the hydrate step itself:
+   harvests the POST into ${REPORTS_DIR}/<slug>-answers.md, flips the log row to
+   answered, and runs the hydrate step itself:
        scripts/fr-hydrate.sh ${REPORTS_DIR}/<slug>-answers.md ${REPORTS_DIR}/<slug>.html
    The next reload shows the answers. Run hydrate by hand only after a re-render.
    Freeform panel messages land in ${REPORTS_DIR}/<slug>-messages.md; raw rounds
@@ -355,7 +371,7 @@ When the user names a new feature or a bug is fixed:
 
 1. Patch the canonical template at `<skill-install-dir>/references/canonical-template.html`
 2. Add the pattern to `references/feature-inventory.md` (number the feature, status, where it appeared first, what it does)
-3. Bump skill version (2.1.0 → 2.1.1 for tweaks, 2.2.0 for new features, 3.0.0 for breaking changes). Bump the `field-report-version` meta in the template in the same commit; the guard keys off it.
+3. Bump skill version (2.1.0 → 2.1.1 for tweaks, 2.2.0 for new features, 3.0.0 for breaking changes). Bump the `field-report-version` meta in the template in the same commit only when the template markup changes. A skill-text-only change bumps the frontmatter version alone, because the guard rejects any report whose stamp differs from the template's.
 4. If the change is public-shipping-relevant, note it in the README
 
 ## Dependencies
@@ -430,3 +446,4 @@ To move PARTIAL → YES: three scored runs against the Pre-save checklist + 15-f
 ## Origin
 
 The pattern was extracted from months of hand-built decision-doc HTML reports. It got skillified after three reports in one flow state came out three different shapes — checkboxes here, no checkboxes there, missing light toggle on the third — and that interrupted the work. Root cause: the canonical template existed but was not the loaded skill. v2.1.0 ships with the template wired and the procedure enforced. v2.1.1 (2026-05-17) added bus event emission, drift detection, the public-ship light/dark toggle requirement, and per-block code-copy buttons. v2.1.2 (2026-06) added responsive breakpoints for zoom and narrow viewports. v2.1.3 (2026-07-30) added the clipboard fallback for sandboxed and `file://` contexts. v2.2.0 (2026-09-07) added the floating notes panel (feature 16), the stacked header changelog, and the optional "do this tomorrow" banner. v2.3.0 (2026-09-17) closed the loop: feature 17, the agent wire (POST + presence) over lavish-axi, with a clipboard attach path when nobody is listening, and the per-id receipt rule. Design record: the operator's "now version / later version" brief and the ruling that the page reads its state rather than asking for a mode. v2.4.1 (2026-10-27) stamps `data-lavish-action="toggle"` on every `.toggle` so Lavish selects instead of annotating, and keeps the POST button labeled and visible without hover. v4.0.0 (2026-10-30) moved the answers to disk: under Lavish's sandbox every browser-storage save had been silently dropped since Lavish became mandatory, so the template now stores nothing, restores only from the `fr-state` block, and `fr-hydrate.sh` bakes the harvested answers file into it. v4.1.0 (2026-10-30) added `scripts/fr-listen.sh`, the owning-session listener, after the Firstmate supervisor-runner delivery left a served PFR deaf for a day: the runner's wake went to a queue only a Firstmate primary reads, and none was running. Proven live the same night: two panel messages acted on and answered in the same conversation, two POSTs harvested and hydrated, DONE state surviving reload. v4.2.0 (2026-10-30) made the first serve one command (`fr-listen.sh <file> --open`: open in front only after the url answers 200, never on a re-arm; the bare `open` line is gone), moved the POST receipt off `lavish-axi reply` and onto the re-arm's `--agent-reply` (the in-script reply cleared Lavish's working state and flashed "Your agent is not listening" between every round and its re-arm), and made the presence cell say what the page can prove, `Lavish: wired` / `Lavish: absent`, since Lavish never tells the sandboxed page whether anyone polls.
+v4.3.0 (2026-10-31) records a delivery with one command (`FR_DELIVER_BIN`, skipped when absent), which writes the delivery-log row and the link record that lets the morning run find the report and act on its PICK. The guard's reminder keys on the link record and shell-quotes the command it suggests. Frontmatter version only: the template markup did not change, so its stamp stays 4.2.0.

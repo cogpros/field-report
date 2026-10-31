@@ -111,6 +111,8 @@ Claude writes the path into your `CLAUDE.md` as a one-line memory and creates th
 
 You can also pre-set the path via the `CLAUDE_REPORTS_DIR` environment variable, or by adding a `reports_dir:` line to your project `CLAUDE.md`.
 
+Delivery recording is optional: set `FR_DELIVER_BIN` if your box has a delivery recorder; otherwise the step is skipped.
+
 ## Demo
 
 `references/example.html` is the worked example linked at the top of this README. Self-referential: the agent is asking the developer which Claude Code skills to install before scaffolding a new project. Field-report is option #1 on the list.

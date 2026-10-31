@@ -4,6 +4,12 @@ set -u
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 T="$HERE/references/canonical-template.html"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+# Isolation: the delivery log and the guard's defaults live under $HOME. Nothing here may
+# reach the real one, so HOME moves first and the real log's line count is checked at exit.
+LIVE_LOG="$HOME/1HUGR/.runtime/state/field-reports/log.jsonl"
+live_lines(){ if [ -e "$LIVE_LOG" ]; then wc -l < "$LIVE_LOG" | tr -d ' '; else echo absent; fi; }
+LIVE_BEFORE="$(live_lines)"
+export HOME="$TMP/home"; mkdir -p "$HOME"
 mkdir -p "$TMP/dash/reports"
 export FR_REPORTS_DIR="$TMP/dash/reports" FR_TEMPLATE="$T"
 run(){ printf '{"tool_input":{"file_path":"%s"}}' "$1" | "$HERE/scripts/field-report-guard.sh" >/dev/null 2>&1; echo $?; }
@@ -98,4 +104,111 @@ has listen-refuses-devnull   '/dev/fd/1 -ef /dev/null' "$L"
 has listen-orphan-check      'orphaned: the session that started' "$L"
 has listen-next-tracked      'run_in_background=true' "$L"
 has skill-stat-placeholders  'STAT_n_NUM' "$S"
+
+# v4.3.0: a delivery goes through the deliver binary; the old call must never come back
+G="$HERE/scripts/field-report-guard.sh"
+lacks skill-no-old-delivered 'fr-log\.sh delivered' "$S"
+lacks guard-no-old-delivered 'fr-log\.sh delivered' "$G"
+lacks guard-no-old-delivered-fmt 'fr-log.sh delivered %s' "$G"
+has   skill-deliver-call 'FR_DELIVER_BIN' "$S"
+has   guard-deliver-call 'FR_DELIVER_BIN' "$G"
+has   readme-deliver-optional 'FR_DELIVER_BIN' "$RD"
+# Step 4: a re-render is not delivered again, and every exit 1 is named by its stderr text
+lacks skill-no-new-slug-recovery 're-serve under a new slug' "$S"
+has   skill-rerender-not-delivered 'is not delivered again' "$S"
+has   skill-new-slug-different-report 'new slug is only for a genuinely different report' "$S"
+has   skill-names-invalid-slug '"invalid report slug": fix the slug' "$S"
+has   skill-names-producer-busy '"producer busy; bounded lock wait expired": wait and re-run the identical command' "$S"
+has   skill-names-card-failure '"card create failed"' "$S"
+has   skill-link-record-purpose 'find the report and act on its PICK' "$S"
+lacks skill-no-section-0-claim 'section 0[^.]*link record' "$S"
+lacks guard-no-section-0-claim 'section 0[^.]*link record' "$G"
+# The skill states one version: the heading and the history follow the frontmatter
+VER="$(sed -n 's/^version: //p' "$S" | head -1)"; VER_RE="${VER//./\\.}"
+has   skill-heading-version "^# Skill: field-report \\(PFR\\) v$VER_RE\$" "$S"
+has   skill-history-version "^v$VER_RE \\(" "$S"
+
+# v4.3.0: the reminder. The block above never reaches it (FR_REPORTS_DIR is set), so unset it here.
+RR="$HOME/1HUGR/.runtime/dashboards/reports"; DEF_STATE="$HOME/1HUGR/.runtime/state/field-reports"
+ST="$TMP/state"; BIN="$TMP/bin/deliver"
+mkdir -p "$RR" "$ST" "$TMP/bin"
+printf '#!/bin/sh\nexit 0\n' > "$BIN"; chmod +x "$BIN"
+report(){ cp "$T" "$RR/$1.html"; echo "$RR/$1.html"; }
+# guard <file> [VAR=value ...]: the guard's stdout; the caller reads its exit code from $?
+guard(){ local f="$1"; shift
+  printf '{"tool_input":{"file_path":"%s"}}' "$f" \
+    | env -u FR_REPORTS_DIR FR_TEMPLATE="$T" "$@" "$HERE/scripts/field-report-guard.sh" 2>/dev/null; }
+yes_no(){ if "$@"; then echo 1; else echo 0; fi; }
+names(){ printf '%s' "$1" | grep -Fq -- "$2"; }
+says(){ printf '%s' "$1" | grep -Eqi -- "$2"; }
+# The reminder shell-quotes what it interpolates, so expect the quoted form on any TMPDIR.
+sq(){ python3 -c 'import shlex,sys; print(shlex.quote(sys.argv[1]))' "$1"; }
+
+# 1. reminder fires, names the deliver binary and the slug, never the old call
+f="$(report remind-me)"
+out="$(guard "$f" FR_STATE_DIR="$ST" FR_DELIVER_BIN="$BIN")"; rc=$?
+chk reminder-exit-0            "$rc" 0
+chk reminder-names-binary      "$(yes_no names "$out" "$(sq "$BIN") remind-me")" 1
+chk reminder-link-record-purpose "$(yes_no names "$out" 'find the report and act on its PICK')" 1
+chk reminder-no-section-0-claim "$(yes_no says "$out" 'section 0[^.]*link record')" 0
+chk reminder-not-old-call      "$(yes_no names "$out" 'fr-log.sh delivered')" 0
+chk reminder-is-hook-json      "$(printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["hookEventName"])' 2>/dev/null)" PostToolUse
+# 2. the stamp lands in the state dir it was given, not the default one
+chk reminder-stamp-in-state    "$(yes_no test -e "$ST/.reminded/remind-me")" 1
+chk reminder-no-default-stamp  "$(yes_no test -e "$DEF_STATE/.reminded/remind-me")" 0
+# 3. second write of the same slug: stamped, so silent
+out="$(guard "$f" FR_STATE_DIR="$ST" FR_DELIVER_BIN="$BIN")"; rc=$?
+chk reminder-once-exit-0       "$rc" 0
+chk reminder-once-silent       "$out" ""
+# 4. a link record and no stamp: silent, and no stamp is spent
+f="$(report linked)"; mkdir -p "$ST/cards"; echo '{}' > "$ST/cards/linked.json"
+out="$(guard "$f" FR_STATE_DIR="$ST" FR_DELIVER_BIN="$BIN")"; rc=$?
+chk linked-exit-0              "$rc" 0
+chk linked-silent              "$out" ""
+chk linked-no-stamp            "$(yes_no test -e "$ST/.reminded/linked")" 0
+# 5. binary absent: silent, exit 0, and no stamp, so installing it later still reminds
+f="$(report no-binary)"
+out="$(guard "$f" FR_STATE_DIR="$ST" FR_DELIVER_BIN="$TMP/bin/missing")"; rc=$?
+chk no-binary-exit-0           "$rc" 0
+chk no-binary-silent           "$out" ""
+chk no-binary-no-stamp         "$(yes_no test -e "$ST/.reminded/no-binary")" 0
+# 6. logged but not linked: silent while the default binary is absent, reminds once it exists
+f="$(report logged-only)"; mkdir -p "$DEF_STATE" "$HOME/1HUGR/bin"
+printf '{"slug": "logged-only", "state": "delivered"}\n' > "$DEF_STATE/log.jsonl"
+out="$(guard "$f")"; rc=$?
+chk default-binary-absent-exit-0 "$rc" 0
+chk default-binary-absent-silent "$out" ""
+cp "$BIN" "$HOME/1HUGR/bin/field-report-deliver.sh"
+out="$(guard "$f")"; rc=$?
+chk logged-only-exit-0         "$rc" 0
+chk logged-only-reminds        "$(yes_no names "$out" "$(sq "$HOME/1HUGR/bin/field-report-deliver.sh") logged-only")" 1
+chk logged-only-default-stamp  "$(yes_no test -e "$DEF_STATE/.reminded/logged-only")" 1
+# 7. a test harness with FR_REPORTS_DIR set never gets the reminder
+cp "$T" "$R/harness.html"
+out="$(printf '{"tool_input":{"file_path":"%s"}}' "$R/harness.html" | FR_STATE_DIR="$ST" FR_DELIVER_BIN="$BIN" "$HERE/scripts/field-report-guard.sh" 2>/dev/null)"
+chk harness-no-reminder        "$out" ""
+# 8. the suggested command runs as printed when the binary, the report path, and the slug need quoting
+QH="$TMP/home with space"; QR="$QH/1HUGR/.runtime/dashboards/reports"; QB="$TMP/it's delivery tools"
+mkdir -p "$QR" "$QB"
+cat > "$QB/deliver" <<'SH'
+#!/bin/sh
+for a in "$@"; do printf '%s\n' "$a"; done > "$STUB_ARGS"
+SH
+chmod +x "$QB/deliver"
+f="$QR/spaced slug.html"; cp "$T" "$f"
+out="$(guard "$f" HOME="$QH" FR_STATE_DIR="$TMP/qstate" FR_DELIVER_BIN="$QB/deliver")"; rc=$?
+chk quoted-reminder-exit-0     "$rc" 0
+cmd="$(printf '%s' "$out" | python3 -c '
+import json, sys
+c = json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"].split("run: ", 1)[1].split(" [--pick", 1)[0]
+for k, v in (("<title>", "A title"), ("<url>", "http://u"), ("<seat>", "s"), ("<sections>", "2"), ("<where you stopped>", "right here")):
+    c = c.replace(k, v)
+print(c)' 2>/dev/null)"
+STUB_ARGS="$TMP/stub-args" bash -c "$cmd" >/dev/null 2>&1; rc=$?
+chk quoted-command-reaches-stub "$rc" 0
+want="$(printf '%s\n' 'spaced slug' 'A title' "$f" 'http://u' s 2 --stop 'right here')"
+got="$(cat "$TMP/stub-args" 2>/dev/null)"
+chk quoted-command-args-intact "$(yes_no test "$got" = "$want")" 1
+
+chk live-log-untouched "$(live_lines)" "$LIVE_BEFORE"
 exit $fail
